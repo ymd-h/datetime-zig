@@ -108,6 +108,21 @@ pub const Timestamp = union(TimestampTag) {
             .ns => | *ns | { ns.* += @as(i128, sec) * std.time.ns_per_s; },
         }
     }
+
+    /// Get nanoseconds representation
+    pub fn nanoseconds(self: Self) i128 {
+        return switch(self){
+            .s  => |  s | @as(i128,  s) * std.time.ns_per_s,
+            .ms => | ms | @as(i128, ms) * std.time.ns_per_ms,
+            .us => | us | @as(i128, us) * std.time.ns_per_us,
+            .ns => | ns | ns,
+        };
+    }
+
+    /// Check equality to another timestamp
+    pub fn equal(self: Self, other: Self) bool {
+        return self.nanoseconds() == other.nanoseconds();
+    }
 };
 
 test "Timestamp" {
@@ -123,6 +138,24 @@ test "Timestamp" {
     tsn.addTimeZone(.{ .minute = 30 });
     try testing.expectEqualDeep(Timestamp{ .ns = 30 * 60 * 1_000_000_000 }, tsn);
 }
+
+test "Timestamp.nanoseconds" {
+    try testing.expectEqual(0, (Timestamp{ .s = 0 }).nanoseconds());
+    try testing.expectEqual(1_000_000_000, (Timestamp{ .s = 1 }).nanoseconds());
+    try testing.expectEqual(1_000_000, (Timestamp{ .ms = 1 }).nanoseconds());
+    try testing.expectEqual(1_000, (Timestamp{ .us = 1 }).nanoseconds());
+    try testing.expectEqual(1, (Timestamp{ .ns = 1 }).nanoseconds());
+}
+
+test "Timestamp.equal" {
+    try testing.expect((Timestamp{ .s = 0 }).equal(Timestamp{ .ms = 0 }));
+    try testing.expect((Timestamp{ .s = 1 }).equal(Timestamp{ .ms = 1_000 }));
+    try testing.expect((Timestamp{ .s = 0 }).equal(Timestamp{ .ms = 0 }));
+    try testing.expect((Timestamp{ .ns = 1_000_000 }).equal(Timestamp{ .ms = 1 }));
+    try testing.expect(!(Timestamp{ .s = 0 }).equal(Timestamp{ .s = 1 }));
+    try testing.expect(!(Timestamp{ .ns = 1 }).equal(Timestamp{ .ms = 1 }));
+}
+
 
 /// Time Zone struct
 /// This struct is used at `DateTime` field and `DateTime.fromTimestamp()`.
