@@ -121,7 +121,7 @@ test "Timestamp" {
 /// This struct is used at `DateTime` field and `DateTime.fromTimestamp()`.
 pub const TimeZone = struct {
     hour: i5 = 0,
-    minute: i6 = 0,
+    minute: i7 = 0,
 
     /// Get seconds representation of Time Zone.
     pub fn seconds(self: TimeZone) i17 {
@@ -135,6 +135,8 @@ test "TimeZone" {
     try testing.expectEqual(9 * 3600, (TimeZone{ .hour = 9 }).seconds());
     try testing.expectEqual(12 * 3600, (TimeZone{ .hour = 12 }).seconds());
     try testing.expectEqual(-12 * 3600, (TimeZone{ .hour = -12 }).seconds());
+    try testing.expectEqual(60 * 30, (TimeZone{ .minute = 30 }).seconds());
+    try testing.expectEqual(60 * 45, (TimeZone{ .minute = 45 }).seconds());
 }
 
 /// DateTime struct
