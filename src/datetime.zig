@@ -365,6 +365,8 @@ test "DataTime.fromTimestamp" {
                                          .ms = 40, .tz = .{ .hour = 9 } },
                                 DateTime.fromTimestamp(.{ .ms = 1726199635040 },
                                                        .{ .hour = 9 }));
+    const oldest = try (DateTime{ .year = 1 }).getTimestamp();
+    try testing.expectError(error.TooOld, DateTime.fromTimestamp(.{ .s = oldest - 1 }, .{}));
 }
 
 
