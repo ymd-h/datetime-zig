@@ -1,3 +1,12 @@
+//! datetime.zig
+//!
+//! # DateTime
+//! Time Zone awared Date Time struct
+//!
+//! # Timestamp
+//!
+//! # TimeZone
+
 const std = @import("std");
 const testing = std.testing;
 
@@ -9,6 +18,9 @@ fn countDivisible(from: u16, to: u16, denom: u16) !u16 {
     return (try std.math.divCeil(u16, to, denom)) - (try std.math.divCeil(u16, from, denom));
 }
 
+/// Count Leap Year between years.
+/// The range is half open, `from` is included and `to` is excluded.
+/// Unless `from < to`, returns `error.InvalidRange`.
 pub fn countLeapYear(from: u16, to: u16) !u16 {
     if(from >= to){
         return error.InvalidRange;
@@ -32,7 +44,10 @@ test "countLeapYear" {
     try testing.expectError(error.InvalidRange, countLeapYear(1900, 1900));
 }
 
-
+/// Get days in a month.
+/// Aside from `std.time.getDaysInMonth()`,
+/// this function takes `month` as `u4`
+/// If `month` is outside, returns `error.InvalidMonth`.
 pub fn getDaysInMonth(is_leap: bool, month: u4) !u5 {
     return switch(month){
         4, 6, 9, 11 => 30,
@@ -73,6 +88,9 @@ test "getDaysInMonth" {
 
 
 const TimestampTag = enum { s, ms, us, ns };
+
+/// Timestamp union
+/// This union is used at `DateTime.fromTimestamp()`.
 pub const Timestamp = union(TimestampTag) {
     s: i64,
     ms: i64,
@@ -99,10 +117,13 @@ test "Timestamp" {
     try testing.expectEqualDeep(Timestamp{ .s = 0 }, ts);
 }
 
+/// Time Zone struct
+/// This struct is used at `DateTime` field and `DateTime.fromTimestamp()`.
 pub const TimeZone = struct {
     hour: i5 = 0,
     minute: i6 = 0,
 
+    /// Get seconds representation of Time Zone.
     pub fn seconds(self: TimeZone) i17 {
         const hour   = @as(i17, self.hour  ) * std.time.s_per_hour;
         const minute = @as(i17, self.minute) * std.time.s_per_min;
@@ -116,6 +137,7 @@ test "TimeZone" {
     try testing.expectEqual(-12 * 3600, (TimeZone{ .hour = -12 }).seconds());
 }
 
+/// DateTime struct
 pub const DateTime = struct {
     year: u16 = 1970,
     month: u4 = 1,
@@ -196,6 +218,7 @@ pub const DateTime = struct {
         self.adjustMicro(us);
     }
 
+    /// Create new `DateTime` from `Timestamp` and `TimeZone`.
     pub fn fromTimestamp(timestamp: Timestamp, tz: TimeZone) !Self {
         var dt: DateTime = .{ .tz = tz };
 
@@ -262,6 +285,7 @@ pub const DateTime = struct {
         return dt;
     }
 
+    /// Get timestamp in seconds.
     pub fn getTimestamp(self: Self) !i64 {
         try self.validate();
 
@@ -294,14 +318,17 @@ pub const DateTime = struct {
         return timestamp;
     }
 
+    /// Get timestamp in milli seconds.
     pub fn getMilliTimestamp(self: Self) !i64 {
         return try self.getTimestamp() * std.time.ms_per_s + self.ms;
     }
 
+    /// Get timestamp in micro seconds.
     pub fn getMicroTimestamp(self: Self) !i64 {
         return try self.getMilliTimestamp() * std.time.us_per_ms + self.us;
     }
 
+    /// Get timestamp in nano seconds.
     pub fn getNanoTimestamp(self: Self) !i128 {
         return @as(i128, try self.getMicroTimestamp()) * std.time.ns_per_us + self.ns;
     }
