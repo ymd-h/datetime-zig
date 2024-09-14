@@ -225,6 +225,11 @@ test "TimeZone" {
     try testing.expectEqual(60 * 45, (TimeZone{ .minute = 45 }).seconds());
 }
 
+test "TimeZone.validate" {
+    try testing.expectError(error.InvalidTimeZone,
+                            (TimeZone{ .hour = 5, .minute = -15 }).validate());
+}
+
 /// DateTime struct
 pub const DateTime = struct {
     year: u16 = 1970,
