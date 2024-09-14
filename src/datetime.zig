@@ -313,7 +313,8 @@ pub const DateTime = struct {
 
         const is_leap = std.time.epoch.isLeapYear(dt.year);
         while(dt.month <= 12) {
-            const days_per_this_month: i64 = @intCast(try getDaysInMonth(is_leap, dt.month));
+            const days_per_this_month: i64 =
+                @intCast(getDaysInMonth(is_leap, dt.month) catch unreachable);
 
             if(days <= days_per_this_month){
                 break;
