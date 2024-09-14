@@ -14,6 +14,40 @@ const s_per_year = std.time.s_per_day * 365;
 const s_per_leap_year = std.time.s_per_day * 366;
 
 
+fn parseInt(comptime T: type, s: [] const u8, n: usize) !T {
+    const zero: u8 = '0';
+    const nine: u8 = '9';
+
+    try mustHave(s, n);
+
+    var d: T = 0;
+    for(s[0..n]) | c | {
+        switch(c) {
+            zero ... nine => {
+                d = d * 10 + @as(T, @intCast(c - zero));
+            },
+            else => {
+                return error.InvalidString;
+            },
+        }
+    }
+
+    return d;
+}
+
+fn mustHave(s: [] const u8, n: usize) !void {
+    if(s.len < n){
+        return error.InvalidString;
+    }
+}
+
+fn mustBeginWith(s: [] const u8, c: u8) !void {
+    if(s[0] != c){
+        return error.InvalidString;
+    }
+}
+
+
 fn countDivisible(from: u16, to: u16, denom: u16) !u16 {
     return (try std.math.divCeil(u16, to, denom)) - (try std.math.divCeil(u16, from, denom));
 }
@@ -99,8 +133,8 @@ pub const Timestamp = union(TimestampTag) {
 
     const Self = @This();
 
-    fn addTimeZone(self: *Self, tz: TimeZone) void {
-        const sec = tz.seconds();
+    fn addTimeZone(self: *Self, tz: TimeZone) !void {
+        const sec = try tz.seconds();
         switch(self.*){
             .s  => | *s  | { s.*  += @as(i64 , sec); },
             .ms => | *ms | { ms.* += @as(i64 , sec) * std.time.ms_per_s; },
@@ -128,14 +162,14 @@ pub const Timestamp = union(TimestampTag) {
 test "Timestamp" {
     var ts = Timestamp{ .s = 0 };
 
-    ts.addTimeZone(.{});
+    try ts.addTimeZone(.{});
     try testing.expectEqualDeep(Timestamp{ .s = 0 }, ts);
 
-    ts.addTimeZone(.{ .hour = 9 });
+    try ts.addTimeZone(.{ .hour = 9 });
     try testing.expectEqualDeep(Timestamp{ .s = 9 * 3600 }, ts);
 
     var tsn = Timestamp{ .ns = 0 };
-    tsn.addTimeZone(.{ .minute = 30 });
+    try tsn.addTimeZone(.{ .minute = 30 });
     try testing.expectEqualDeep(Timestamp{ .ns = 30 * 60 * 1_000_000_000 }, tsn);
 }
 
@@ -163,11 +197,23 @@ pub const TimeZone = struct {
     hour: i5 = 0,
     minute: i7 = 0,
 
+    const Self = @This();
+
     /// Get seconds representation of Time Zone.
-    pub fn seconds(self: TimeZone) i17 {
+    pub fn seconds(self: Self) !i17 {
+        try self.validate();
+
         const hour   = @as(i17, self.hour  ) * std.time.s_per_hour;
         const minute = @as(i17, self.minute) * std.time.s_per_min;
         return hour + minute;
+    }
+
+    fn validate(self: Self) !void {
+        if((self.hour == 0) or (self.minute == 0)){ return; }
+
+        if((self.hour > 0) != (self.minute > 0)){
+            return error.InvalidTimeZone;
+        }
     }
 };
 
@@ -265,7 +311,7 @@ pub const DateTime = struct {
         var dt: DateTime = .{ .tz = tz };
 
         var ts = timestamp;
-        ts.addTimeZone(tz);
+        try ts.addTimeZone(tz);
 
         switch(ts){
             .ns => | ns | {
@@ -356,7 +402,7 @@ pub const DateTime = struct {
             @as(i64, self.hour) * std.time.s_per_hour +
             @as(i64, self.minute) * std.time.s_per_min +
             @as(i64, self.second) -
-            @as(i64, self.tz.seconds());
+            @as(i64, try self.tz.seconds());
 
         return timestamp;
     }
@@ -374,6 +420,182 @@ pub const DateTime = struct {
     /// Get timestamp in nano seconds.
     pub fn getNanoTimestamp(self: Self) !i128 {
         return @as(i128, try self.getMicroTimestamp()) * std.time.ns_per_us + self.ns;
+    }
+
+    fn parseTime(self: *Self, dateString: [] const u8, is_ext: bool) !([] const u8) {
+        // HH
+        self.hour = try parseInt(u5, dateString, 2);
+        var s = dateString[2..];
+
+        if(s.len == 0){ return s; }
+
+        if(is_ext){
+            switch(s[0]){
+                // HH (allowed only when extended)
+                '+', '-', 'Z' => { return s; },
+                ':' => { s = s[1..]; },
+                else => { return error.InvalidString; },
+            }
+        }
+
+        // MM
+        self.minute = try parseInt(u6, s, 2);
+        s = s[2..];
+
+        if(s.len == 0){ return s; }
+        switch(s[0]){
+            '+', '-', 'Z' => { return s; },
+            else => {},
+        }
+
+        if(is_ext){
+            try mustBeginWith(s, ':');
+            s = s[1..];
+        }
+
+        // SS
+        self.second = try parseInt(u6, s, 2);
+        s = s[2..];
+
+        if(s.len == 0){ return s; }
+        switch(s[0]){
+            '+', '-', 'Z' => { return s; },
+            '.' => { s = s[1..]; },
+            else => { return error.InvalidString; },
+        }
+
+
+        // ms
+        self.ms = try parseInt(u10, s, 3);
+        s = s[3..];
+
+        if(s.len == 0){ return s; }
+        switch(s[0]){
+            '+', '-', 'Z' => { return s; },
+            else => {},
+        }
+
+        // us
+        self.us = try parseInt(u10, s, 3);
+        s = s[3..];
+
+        if(s.len == 0){ return s; }
+        switch(s[0]){
+            '+', '-', 'Z' => { return s; },
+            else => {},
+        }
+
+        // ns
+        self.ns = try parseInt(u10, s, 3);
+        s = s[3..];
+
+        return s;
+    }
+
+    /// Parse ISO8061 Date Time string
+    pub fn parse(dateString: [] const u8) !Self {
+        var dt: DateTime = .{};
+
+        // YYYY
+        dt.year = try parseInt(u16, dateString, 4);
+        var s = dateString[4..];
+
+        if(s.len == 0){
+            try dt.validate();
+            return dt;
+        }
+
+        const is_ext = (s[0] == '-');
+        if(is_ext){
+            s = s[1..];
+        }
+
+        // mm
+        dt.month = try parseInt(u4, s, 2);
+        s = s[2..];
+
+        if(is_ext){
+            if(s.len == 0){
+                // YYYY-mm (YYYYmm is not allowed)
+                try dt.validate();
+                return dt;
+            }
+            try mustBeginWith(s, '-');
+            s = s[1..];
+        }
+
+        // dd
+        dt.date = try parseInt(u5, s, 2);
+        s = s[2..];
+
+        if(s.len == 0){
+            try dt.validate();
+            return dt;
+        }
+
+        // T
+        try mustBeginWith(s, 'T');
+        s = s[1..];
+
+        // Time
+        s = try dt.parseTime(s, is_ext);
+
+        if(s.len == 0){
+            try dt.validate();
+            return dt;
+        }
+
+        if(s[0] == 'Z'){
+            try dt.validate();
+            return dt;
+        }
+
+        switch(s[0]){
+            '+' => {
+                s = s[1..];
+                dt.tz.hour = try parseInt(i5, s, 2);
+                s = s[2..];
+
+                if(s.len == 0){
+                    try dt.validate();
+                    return dt;
+                }
+
+                if(is_ext){
+                    try mustBeginWith(s, ':');
+                    s = s[1..];
+                }
+
+                dt.tz.minute = try parseInt(i7, s, 2);
+                s = s[2..];
+            },
+            '-' => {
+                s = s[1..];
+                dt.tz.hour = - try parseInt(i5, s, 2);
+                s = s[2..];
+
+                if(s.len == 0){
+                    try dt.validate();
+                    return dt;
+                }
+
+                if(is_ext){
+                    try mustBeginWith(s, ':');
+                    s = s[1..];
+                }
+
+                dt.tz.minute = - try parseInt(i7, s, 2);
+                s = s[2..];
+            },
+            else => { return error.InvalidString; },
+        }
+
+        if(s.len != 0){
+            return error.InvalidString;
+        }
+
+        try dt.validate();
+        return dt;
     }
 };
 
@@ -450,4 +672,109 @@ test "DateTime consistensy" {
     try testing.expectEqualDeep(
         dt, DateTime.fromTimestamp(.{ .ns = (try dt.getNanoTimestamp()) }, tz),
     );
+}
+
+
+test "DateTime.parse" {
+    try testing.expectEqual(DateTime{ .year = 2024 }, DateTime.parse("2024"));
+    try testing.expectError(
+        error.InvalidString, DateTime.parse("202409"),
+    );
+    try testing.expectEqual(
+        DateTime{ .year = 2024, .month = 9, .date = 14 }, DateTime.parse("20240914"),
+    );
+    try testing.expectEqual(
+        DateTime{ .year = 2024, .month = 9, .date = 14, .hour = 21, .minute = 25 },
+        DateTime.parse("20240914T2125"),
+    );
+    try testing.expectEqual(
+        DateTime{ .year = 2024, .month = 9, .date = 14,
+                 .hour = 21, .minute = 25, .second = 9 },
+        DateTime.parse("20240914T212509"),
+    );
+    try testing.expectEqual(
+        DateTime{ .year = 2024, .month = 9, .date = 14,
+                 .hour = 21, .minute = 25, .second = 9 },
+        DateTime.parse("20240914T212509Z"),
+    );
+    try testing.expectEqual(
+        DateTime{ .year = 2024, .month = 9, .date = 14,
+                 .hour = 21, .minute = 25, .second = 9,
+                 .tz = .{ .hour = -7 } },
+        DateTime.parse("20240914T212509-07"),
+    );
+    try testing.expectEqual(
+        DateTime{ .year = 2024, .month = 9, .date = 14,
+                 .hour = 21, .minute = 25, .second = 9,
+                 .tz = .{ .hour = -7, .minute = -45 } },
+        DateTime.parse("20240914T212509-0745"),
+    );
+    try testing.expectEqual(
+        DateTime{ .year = 2024, .month = 9, .date = 14,
+                 .hour = 21, .minute = 25, .second = 9,
+                 .ms = 124 },
+        DateTime.parse("20240914T212509.124"),
+    );
+    try testing.expectEqual(
+        DateTime{ .year = 2024, .month = 9, .date = 14,
+                 .hour = 21, .minute = 25, .second = 9,
+                 .ms = 124, .us = 24 },
+        DateTime.parse("20240914T212509.124024"),
+    );
+    try testing.expectEqual(
+        DateTime{ .year = 2024, .month = 9, .date = 14,
+                 .hour = 21, .minute = 25, .second = 9,
+                 .ms = 124, .us = 24, .ns = 999 },
+        DateTime.parse("20240914T212509.124024999"),
+    );
+    try testing.expectEqual(
+        DateTime{ .year = 2024, .month = 9, .date = 14,
+                 .hour = 21, .minute = 25, .second = 9,
+                 .ms = 124, .us = 24, .ns = 999 },
+        DateTime.parse("20240914T212509.124024999Z"),
+    );
+    try testing.expectEqual(
+        DateTime{ .year = 2024, .month = 9, .date = 14,
+                 .hour = 21, .minute = 25, .second = 9,
+                 .ms = 124, .us = 24, .ns = 999,
+                 .tz = .{ .hour = 1 } },
+        DateTime.parse("20240914T212509.124024999+01"),
+    );
+
+    try testing.expectEqual(
+        DateTime{ .year = 2024, .month = 9 },
+        DateTime.parse("2024-09"),
+    );
+    try testing.expectEqual(
+        DateTime{ .year = 2024, .month = 9, .date = 14 },
+        DateTime.parse("2024-09-14"),
+    );
+    try testing.expectEqual(
+        DateTime{ .year = 2024, .month = 9, .date = 14, .hour = 23, .minute = 14 },
+        DateTime.parse("2024-09-14T23:14"),
+    );
+    try testing.expectEqual(
+        DateTime{ .year = 2024, .month = 9, .date = 14,
+                 .hour = 23, .minute = 14, .second = 22 },
+        DateTime.parse("2024-09-14T23:14:22"),
+    );
+    try testing.expectEqual(
+        DateTime{ .year = 2024, .month = 9, .date = 14,
+                 .hour = 23, .minute = 14, .second = 22 },
+        DateTime.parse("2024-09-14T23:14:22Z"),
+    );
+    try testing.expectEqual(
+        DateTime{ .year = 2024, .month = 9, .date = 14,
+                 .hour = 23, .minute = 14, .second = 22,
+                 .tz = .{ .hour = 9 } },
+        DateTime.parse("2024-09-14T23:14:22+09"),
+    );
+    try testing.expectEqual(
+        DateTime{ .year = 2024, .month = 9, .date = 14,
+                 .hour = 23, .minute = 14, .second = 22,
+                 .tz = .{ .hour = 9, .minute = 30 } },
+        DateTime.parse("2024-09-14T23:14:22+09:30"),
+    );
+
+    try testing.expectError(error.InvalidString, DateTime.parse("2024/09/13"));
 }
