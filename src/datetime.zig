@@ -115,6 +115,13 @@ test "Timestamp" {
 
     ts.addTimeZone(.{});
     try testing.expectEqualDeep(Timestamp{ .s = 0 }, ts);
+
+    ts.addTimeZone(.{ .hour = 9 });
+    try testing.expectEqualDeep(Timestamp{ .s = 9 * 3600 }, ts);
+
+    var tsn = Timestamp{ .ns = 0 };
+    tsn.addTimeZone(.{ .minute = 30 });
+    try testing.expectEqualDeep(Timestamp{ .ns = 30 * 60 * 1_000_000_000 }, tsn);
 }
 
 /// Time Zone struct
