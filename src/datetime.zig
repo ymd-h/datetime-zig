@@ -610,6 +610,22 @@ pub const DateTime = struct {
     }
 };
 
+test "DateTime allocate" {
+    var dt = try std.testing.allocator.create(DateTime);
+    defer std.testing.allocator.destroy(dt);
+    dt.* = .{};
+
+    try testing.expectEqualDeep(DateTime{}, dt.*);
+
+    try dt.parseInto("2022-01-31T12:45:09.123-08:15");
+    try testing.expectEqualDeep(
+        DateTime{ .year = 2022, .month = 1, .date = 31,
+                 .hour = 12, .minute = 45, .second = 9,
+                 .ms = 123, .tz = .{ .hour = -8, .minute = -15 } },
+        dt.*,
+    );
+}
+
 test "DateTime.validate" {
     try (DateTime{}).validate();
     try (DateTime{ .year = 1 }).validate();
