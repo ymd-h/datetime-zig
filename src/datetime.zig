@@ -13,7 +13,10 @@ const testing = std.testing;
 const s_per_year = std.time.s_per_day * 365;
 const s_per_leap_year = std.time.s_per_day * 366;
 
-
+/// Parse string `s` to integer with specified type `T`
+/// We assume string is ascii encoded digit with `n` length.
+/// This will fail with `error.InvalidString`,
+/// when `s` doesn't have `n` length or contains non digit letters.
 fn parseInt(comptime T: type, s: [] const u8, n: usize) !T {
     const zero: u8 = '0';
     const nine: u8 = '9';
@@ -35,19 +38,24 @@ fn parseInt(comptime T: type, s: [] const u8, n: usize) !T {
     return d;
 }
 
+/// Assert unless `s` has at least `n` length.
 fn mustHave(s: [] const u8, n: usize) !void {
     if(s.len < n){
         return error.InvalidString;
     }
 }
 
+/// Assert unless `s` begin with character `c`.
 fn mustBeginWith(s: [] const u8, c: u8) !void {
     if(s[0] != c){
         return error.InvalidString;
     }
 }
 
-
+/// Count divisible numbers with `denom` between `from` and `to`.
+/// The range is half open, `from` is included and `to` is excluded.
+/// This assume `from < to`.
+/// When `denom` is `0`, returns `errors.ZeroDivision`;
 fn countDivisible(from: u16, to: u16, denom: u16) !u16 {
     return (try std.math.divCeil(u16, to, denom)) - (try std.math.divCeil(u16, from, denom));
 }
@@ -120,7 +128,7 @@ test "getDaysInMonth" {
     try testing.expectError(error.InvalidMonth, getDaysInMonth(true, 13));
 }
 
-
+/// Timestamp union tags based on the resolution of Timestamp.
 const TimestampTag = enum { s, ms, us, ns };
 
 /// Timestamp union
@@ -133,6 +141,10 @@ pub const Timestamp = union(TimestampTag) {
 
     const Self = @This();
 
+    /// In order to create Time Zone awared Date Time,
+    /// shift Timestamp.
+    /// The shifted Timestampe is not true Timestamp,
+    /// so that this method is private.
     fn addTimeZone(self: *Self, tz: TimeZone) !void {
         const sec = try tz.seconds();
         switch(self.*){
@@ -210,6 +222,8 @@ pub const TimeZone = struct {
         return hour + minute;
     }
 
+    /// Assert when `TimeZone` is invalid.
+    /// `hour` and `minute` must have same sign.
     fn validate(self: Self) !void {
         if((self.hour == 0) or (self.minute == 0)){ return; }
 
@@ -247,6 +261,17 @@ pub const DateTime = struct {
 
     const Self = @This();
 
+    /// Assert when `DateTime` is invalid.
+    ///    1 <= year
+    ///    1 <= month <= 12
+    ///    1 <= date <= getDaysInMonth(is_leap, month)
+    ///    0 <= hour <= 23
+    ///    0 <= minute <= 59
+    ///    0 <= second <= 59
+    ///    0 <= ms <= 999
+    ///    0 <= us <= 999
+    ///    0 <= ns <= 999
+    ///    tz is valid
     fn validate(self: Self) !void {
         if(self.year == 0){
             return error.InvalidYear;
@@ -284,6 +309,7 @@ pub const DateTime = struct {
         try self.tz.validate();
     }
 
+    /// Adjust time with second resolution
     fn adjustSecond(self: *Self, second: i64) void {
         self.second = @intCast(@mod(second, std.time.s_per_min));
 
@@ -294,6 +320,7 @@ pub const DateTime = struct {
         self.hour = @intCast(@mod(hour, 24));
     }
 
+    /// Adjust time with ms resolution
     fn adjustMilli(self: *Self, ms: i64) void {
         self.ms = @intCast(@mod(ms, std.time.ms_per_s));
 
@@ -301,6 +328,7 @@ pub const DateTime = struct {
         self.adjustSecond(second);
     }
 
+    /// Adjust time with us resolution
     fn adjustMicro(self: *Self, us: i64) void {
         self.us = @intCast(@mod(us, std.time.us_per_ms));
 
@@ -308,6 +336,7 @@ pub const DateTime = struct {
         self.adjustMilli(ms);
     }
 
+    /// Adjust time with ns resolution
     fn adjustNano(self: *Self, ns: i128) void {
         self.ns = @intCast(@mod(ns, std.time.ns_per_us));
 
@@ -384,6 +413,7 @@ pub const DateTime = struct {
     }
 
     /// Set Timestamp
+    /// When some error happens, the current `DateTime` is unchanged and still valid.
     pub fn setTimestamp(self: *Self, timestamp: Timestamp, tz: TimeZone) !void {
         self.* = try DateTime.fromTimestamp(timestamp, tz);
     }
@@ -612,7 +642,8 @@ pub const DateTime = struct {
         return dt;
     }
 
-    /// Parse ISO8061 Date Time string
+    /// Parse and set ISO8061 string
+    /// When some error happens, the current `DateTime` is unchanged and still valid.
     pub fn parseInto(self: *Self, date_string: [] const u8) !void {
         self.* = try DateTime.parse(date_string);
     }
