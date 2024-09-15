@@ -608,6 +608,24 @@ pub const DateTime = struct {
         try dt.parseInto(date_string);
         return dt;
     }
+
+    /// Report whether self is earlier than other.
+    /// This method fails when any of self and other are invalid.
+    pub fn earlierThan(self: Self, other: Self) !bool {
+        return (try self.getNanoTimestamp()) < (try other.getNanoTimestamp());
+    }
+
+    /// Report whether self is later than other.
+    /// This method fails when any of self and other are invalid.
+    pub fn laterThan(self: Self, other: Self) !bool {
+        return try other.earlierThan(self);
+    }
+
+    /// Report whether self points equal timestamp with other.
+    /// This method fails when any of self and other are invalid.
+    pub fn equal(self: Self, other: Self) !bool {
+        return (try self.getNanoTimestamp()) == (try other.getNanoTimestamp());
+    }
 };
 
 test "DateTime allocate" {
