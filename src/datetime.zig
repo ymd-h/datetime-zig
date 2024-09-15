@@ -280,6 +280,8 @@ pub const DateTime = struct {
         if(self.ns >= 1000){
             return error.InvalidNanoSecond;
         }
+
+        try self.tz.validate();
     }
 
     fn adjustSecond(self: *Self, second: i64) void {
