@@ -153,7 +153,7 @@ pub const Timestamp = union(TimestampTag) {
         };
     }
 
-    /// Check equality to another timestamp
+    /// Report whether self points same time to other timestamp.
     pub fn equal(self: Self, other: Self) bool {
         return self.nanoseconds() == other.nanoseconds();
     }
