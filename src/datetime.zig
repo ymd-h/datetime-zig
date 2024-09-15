@@ -193,6 +193,8 @@ test "Timestamp.equal" {
 
 /// Time Zone struct
 /// This struct is used at `DateTime` field and `DateTime.fromTimestamp()`.
+/// The signs of `hour` and `minute` fields must be same,
+/// otherwise some `DateTime` methods will fail.
 pub const TimeZone = struct {
     hour: i5 = 0,
     minute: i7 = 0,
