@@ -773,6 +773,11 @@ pub const DateTime = struct {
 
         std.mem.sort(Self, date_array, {}, f);
     }
+
+    /// Change TimeZone
+    pub fn changeTimeZone(self: *Self, tz: TimeZone) !void {
+        self.* = try DateTime.fromTimestamp(.{ .ns = try self.getNanoTimestamp() }, tz);
+    }
 };
 
 test "DateTime allocate" {
@@ -1047,4 +1052,10 @@ test "DateTime.sort" {
         }),
         &dates,
     );
+}
+
+test "DateTime.changeTimeZone" {
+    var dt = DateTime{ .year = 2024, .tz = .{ .hour = -9 } };
+    try dt.changeTimeZone(.{});
+    try testing.expectEqualDeep(DateTime{ .year = 2024, .hour = 9 }, dt);
 }
