@@ -383,6 +383,11 @@ pub const DateTime = struct {
         return dt;
     }
 
+    /// Set Timestamp
+    pub fn setTimestamp(self: *Self, timestamp: Timestamp, tz: TimeZone) !void {
+        self.* = try DateTime.fromTimestamp(timestamp, tz);
+    }
+
     /// Get timestamp in seconds.
     pub fn getTimestamp(self: Self) !i64 {
         try self.validate();
