@@ -835,3 +835,49 @@ test "DateTime.parseInto" {
         dt,
     );
 }
+
+test "DateTime compare" {
+    try testing.expect(
+        try (DateTime{ .year = 2024 }).earlierThan(DateTime{ .year = 2025 }),
+    );
+    try testing.expect(
+        try (DateTime{ .year = 2024, .month = 4 })
+            .earlierThan(DateTime{ .year = 2024, .month = 5 }),
+    );
+    try testing.expect(
+        try (DateTime{ .year = 2024, .month = 4, .date = 12 })
+            .earlierThan(DateTime{ .year = 2024, .month = 4, .date = 13 }),
+    );
+    try testing.expect(
+        try (DateTime{ .year = 2024, .month = 4, .date = 12 })
+            .earlierThan(DateTime{ .year = 2024, .month = 4, .date = 12,
+                                  .tz = .{ .hour = -3 }}),
+    );
+
+    try testing.expect(
+        try (DateTime{ .year = 2024 }).laterThan(DateTime{ .year = 2023 }),
+    );
+    try testing.expect(
+        try (DateTime{ .year = 2024, .month = 4 })
+            .laterThan(DateTime{ .year = 2024, .month = 3 }),
+    );
+    try testing.expect(
+        try (DateTime{ .year = 2024, .month = 4, .date = 12 })
+            .laterThan(DateTime{ .year = 2024, .month = 4, .date = 11 }),
+    );
+    try testing.expect(
+        try (DateTime{ .year = 2024, .month = 9, .date = 15 })
+            .laterThan(DateTime{ .year = 2024, .month = 9, .date = 15,
+                                .tz = .{ .hour = 9 } }),
+    );
+
+    try testing.expect(
+        try (DateTime{ .year = 2024, .month = 4, .date = 12 })
+            .equal(DateTime{ .year = 2024, .month = 4, .date = 12 }),
+    );
+    try testing.expect(
+        try (DateTime{ .year = 2024, .month = 4, .date = 12 })
+            .equal(DateTime{ .year = 2024, .month = 4, .date = 12,
+                            .hour = 9, .tz = .{ .hour = 9 } }),
+    );
+}
