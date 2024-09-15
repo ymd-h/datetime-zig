@@ -842,6 +842,14 @@ test "DateTime.parseInto" {
                  .tz = .{ .hour = 9 } },
         dt,
     );
+
+    try testing.expectError(error.InvalidString, dt.parseInto("Invalid String"));
+    try testing.expectEqual(
+        DateTime{ .year = 2024, .month = 9, .date = 14,
+                 .hour = 23, .minute = 14, .second = 22,
+                 .tz = .{ .hour = 9 } },
+        dt,
+    );
 }
 
 test "DateTime compare" {
