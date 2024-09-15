@@ -22,6 +22,11 @@ pub fn main(){
            dt.ms, dt.us, dt.ns });
 
     // Parse ISO8601 date string
-    _ = try DateTime.parse("2024-09-15T11:15:23.987+09:00");
+    const dt2 = try DateTime.parse("2024-09-15T11:15:23.987+09:00");
+
+    // Compare DateTime
+    _ = try dt.earlierThan(dt2);
+    _ = try dt.laterThan(dt2);
+    _ = try dt.equal(dt2);
 }
 ```
