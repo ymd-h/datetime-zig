@@ -507,16 +507,16 @@ pub const DateTime = struct {
     }
 
     /// Parse ISO8601 string
-    pub fn parseInto(self: *Self, date_string: [] const u8) !void {
-        self.* = .{};
+    pub fn parse(date_string: [] const u8) !Self {
+        var dt: DateTime = .{};
 
         // YYYY
-        self.year = try parseInt(u16, date_string, 4);
+        dt.year = try parseInt(u16, date_string, 4);
         var s = date_string[4..];
 
         if(s.len == 0){
-            try self.validate();
-            return;
+            try dt.validate();
+            return dt;
         }
 
         const is_ext = (s[0] == '-');
@@ -525,26 +525,26 @@ pub const DateTime = struct {
         }
 
         // mm
-        self.month = try parseInt(u4, s, 2);
+        dt.month = try parseInt(u4, s, 2);
         s = s[2..];
 
         if(is_ext){
             if(s.len == 0){
                 // YYYY-mm (YYYYmm is not allowed)
-                try self.validate();
-                return;
+                try dt.validate();
+                return dt;
             }
             try mustBeginWith(s, '-');
             s = s[1..];
         }
 
         // dd
-        self.date = try parseInt(u5, s, 2);
+        dt.date = try parseInt(u5, s, 2);
         s = s[2..];
 
         if(s.len == 0){
-            try self.validate();
-            return;
+            try dt.validate();
+            return dt;
         }
 
         // T
@@ -552,27 +552,27 @@ pub const DateTime = struct {
         s = s[1..];
 
         // Time
-        s = try self.parseTime(s, is_ext);
+        s = try dt.parseTime(s, is_ext);
 
         if(s.len == 0){
-            try self.validate();
-            return;
+            try dt.validate();
+            return dt;
         }
 
         if(s[0] == 'Z'){
-            try self.validate();
-            return;
+            try dt.validate();
+            return dt;
         }
 
         switch(s[0]){
             '+' => {
                 s = s[1..];
-                self.tz.hour = try parseInt(i5, s, 2);
+                dt.tz.hour = try parseInt(i5, s, 2);
                 s = s[2..];
 
                 if(s.len == 0){
-                    try self.validate();
-                    return;
+                    try dt.validate();
+                    return dt;
                 }
 
                 if(is_ext){
@@ -580,17 +580,17 @@ pub const DateTime = struct {
                     s = s[1..];
                 }
 
-                self.tz.minute = try parseInt(i7, s, 2);
+                dt.tz.minute = try parseInt(i7, s, 2);
                 s = s[2..];
             },
             '-' => {
                 s = s[1..];
-                self.tz.hour = - try parseInt(i5, s, 2);
+                dt.tz.hour = - try parseInt(i5, s, 2);
                 s = s[2..];
 
                 if(s.len == 0){
-                    try self.validate();
-                    return;
+                    try dt.validate();
+                    return dt;
                 }
 
                 if(is_ext){
@@ -598,7 +598,7 @@ pub const DateTime = struct {
                     s = s[1..];
                 }
 
-                self.tz.minute = - try parseInt(i7, s, 2);
+                dt.tz.minute = - try parseInt(i7, s, 2);
                 s = s[2..];
             },
             else => { return error.InvalidString; },
@@ -608,14 +608,13 @@ pub const DateTime = struct {
             return error.InvalidString;
         }
 
-        try self.validate();
+        try dt.validate();
+        return dt;
     }
 
     /// Parse ISO8061 Date Time string
-    pub fn parse(date_string: [] const u8) !Self {
-        var dt: DateTime = .{};
-        try dt.parseInto(date_string);
-        return dt;
+    pub fn parseInto(self: *Self, date_string: [] const u8) !void {
+        self.* = try DateTime.parse(date_string);
     }
 
     /// Report whether self is earlier than other.
