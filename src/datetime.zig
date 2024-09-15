@@ -265,6 +265,9 @@ test "TimeZone.validate" {
     try testing.expectError(error.InvalidTimeZone, (TimeZone{ .hour = 5, .minute = -15 }).validate());
 }
 
+/// Sort Order
+pub const SortOrder = enum(u2) { asc, desc };
+
 /// DateTime struct
 pub const DateTime = struct {
     year: u16 = 1970,
@@ -742,6 +745,34 @@ pub const DateTime = struct {
 
         return @enumFromInt(day);
     }
+
+    /// Sort asc function for `std.mem.sort()`
+    /// Since it doesn't allow any errors,
+    /// call `@panic` builtin when an error happens.
+    fn sortAscFn(_: void, lhs: Self, rhs: Self) bool {
+        return lhs.earlierThan(rhs) catch @panic("Invalid DateTime");
+    }
+
+    /// Sort desc function for `std.mem.sort()`
+    /// Since it doesn't allow any errors,
+    /// call `@panic` builtin when an error happens.
+    fn sortDescFn(_: void, lhs: Self, rhs: Self) bool {
+        return lhs.laterThan(rhs) catch @panic("Invalid DateTime");
+    }
+
+    /// Sort `DateArray`
+    pub fn sort(date_array: []Self, comptime order: SortOrder) !void {
+        for (date_array) |dt| {
+            try dt.validate();
+        }
+
+        const f = switch (order) {
+            .asc => Self.sortAscFn,
+            .desc => Self.sortDescFn,
+        };
+
+        std.mem.sort(Self, date_array, {}, f);
+    }
 };
 
 test "DateTime allocate" {
@@ -982,5 +1013,38 @@ test "DateTime.dayOfWeek" {
     try testing.expectEqual(
         .Sunday,
         (DateTime{ .year = 2024, .month = 9, .date = 15 }).dayOfWeek(),
+    );
+}
+
+test "DateTime.sort" {
+    var dates = [_]DateTime{
+        DateTime{ .year = 2024 },
+        DateTime{ .year = 2023 },
+        DateTime{ .year = 2024, .month = 5 },
+        DateTime{ .year = 2024, .month = 4, .date = 30, .hour = 23, .tz = .{ .hour = -9 } },
+    };
+
+    try DateTime.sort(&dates, .asc);
+    try testing.expectEqualSlices(
+        DateTime,
+        &([_]DateTime{
+            DateTime{ .year = 2023 },
+            DateTime{ .year = 2024 },
+            DateTime{ .year = 2024, .month = 5 },
+            DateTime{ .year = 2024, .month = 4, .date = 30, .hour = 23, .tz = .{ .hour = -9 } },
+        }),
+        &dates,
+    );
+
+    try DateTime.sort(&dates, .desc);
+    try testing.expectEqualSlices(
+        DateTime,
+        &([_]DateTime{
+            DateTime{ .year = 2024, .month = 4, .date = 30, .hour = 23, .tz = .{ .hour = -9 } },
+            DateTime{ .year = 2024, .month = 5 },
+            DateTime{ .year = 2024 },
+            DateTime{ .year = 2023 },
+        }),
+        &dates,
     );
 }
