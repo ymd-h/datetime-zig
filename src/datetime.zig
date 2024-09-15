@@ -789,3 +789,15 @@ test "DateTime.parse" {
 
     try testing.expectError(error.InvalidString, DateTime.parse("2024/09/13"));
 }
+
+
+test "DateTime.parseInto" {
+    var dt: DateTime = .{ .year = 2000, .date = 9 };
+    try dt.parseInto("2024-09-14T23:14:22+09");
+    try testing.expectEqual(
+        DateTime{ .year = 2024, .month = 9, .date = 14,
+                 .hour = 23, .minute = 14, .second = 22,
+                 .tz = .{ .hour = 9 } },
+        dt,
+    );
+}
