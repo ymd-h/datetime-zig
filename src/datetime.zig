@@ -13,6 +13,17 @@ const testing = std.testing;
 const s_per_year = std.time.s_per_day * 365;
 const s_per_leap_year = std.time.s_per_day * 366;
 
+/// Day of the Week
+pub const DayOfWeek = enum(u4) {
+    Sunday,
+    Monday,
+    Tuesday,
+    Wednesday,
+    Thursday,
+    Friday,
+    Saturday,
+};
+
 /// Parse string `s` to integer with specified type `T`
 /// We assume string is ascii encoded digit with `n` length.
 /// This will fail with `error.InvalidString`,
@@ -702,6 +713,35 @@ pub const DateTime = struct {
     pub fn equal(self: Self, other: Self) !bool {
         return (try self.getNanoTimestamp()) == (try other.getNanoTimestamp());
     }
+
+    /// Get day of the week
+    pub fn dayOfWeek(self: Self) !DayOfWeek {
+        try self.validate();
+
+        // (Gregorianum) 0001-01-01 is Monday.
+        var day: u16 = 1;
+
+        if (self.year > 1) {
+            // YYYY-01-01
+            day = @mod(day + (self.year - 1) +
+                (countLeapYear(1, self.year) catch unreachable), 7);
+        }
+
+        if (self.month > 1) {
+            // YYYY-mm-01
+            const is_leap = std.time.epoch.isLeapYear(self.year);
+            for (1..self.month) |month| {
+                const days_in_month = getDaysInMonth(is_leap, @intCast(month)) catch unreachable;
+                day = @mod(day + @as(u16, days_in_month), 7);
+            }
+        }
+
+        if (self.date > 1) {
+            day = @mod(day + self.date - 1, 7);
+        }
+
+        return @enumFromInt(day);
+    }
 };
 
 test "DateTime allocate" {
@@ -931,5 +971,16 @@ test "DateTime compare" {
     try testing.expect(
         try (DateTime{ .year = 2024, .month = 4, .date = 12 })
             .equal(DateTime{ .year = 2024, .month = 4, .date = 12, .hour = 9, .tz = .{ .hour = 9 } }),
+    );
+}
+
+test "DateTime.dayOfWeek" {
+    try testing.expectEqual(
+        .Monday,
+        (DateTime{ .year = 1, .month = 1, .date = 1 }).dayOfWeek(),
+    );
+    try testing.expectEqual(
+        .Sunday,
+        (DateTime{ .year = 2024, .month = 9, .date = 15 }).dayOfWeek(),
     );
 }
