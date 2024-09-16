@@ -800,7 +800,7 @@ pub const DateTime = struct {
         return lhs.laterThan(rhs) catch @panic("Invalid DateTime");
     }
 
-    /// Sort `DateArray`
+    /// Sort DateTime slice
     pub fn sort(date_array: []Self, comptime order: SortOrder) !void {
         for (date_array) |dt| {
             try dt.validate();
