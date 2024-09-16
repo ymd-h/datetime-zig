@@ -281,6 +281,8 @@ pub const FormatOptions = struct {
     tz: bool = true,
 };
 
+const DateTimeField = enum { year, month, date, hour, minute, second, ms, us, ns, tz_hour, tz_minute };
+
 /// DateTime struct
 pub const DateTime = struct {
     year: u16 = 1970,
@@ -719,30 +721,70 @@ pub const DateTime = struct {
         self.* = try DateTime.parse(date_string);
     }
 
+    /// Format field
+    fn formatField(self: Self, writer: anytype, field: DateTimeField) !void {
+        switch (field) {
+            .year => {
+                try writer.print("{d:0>4}", .{self.year});
+            },
+            .month => {
+                try writer.print("{d:0>2}", .{self.month});
+            },
+            .date => {
+                try writer.print("{d:0>2}", .{self.date});
+            },
+            .hour => {
+                try writer.print("{d:0>2}", .{self.hour});
+            },
+            .minute => {
+                try writer.print("{d:0>2}", .{self.minute});
+            },
+            .second => {
+                try writer.print("{d:0>2}", .{self.second});
+            },
+            .ms => {
+                try writer.print("{d:0>3}", .{self.ms});
+            },
+            .us => {
+                try writer.print("{d:0>3}", .{self.us});
+            },
+            .ns => {
+                try writer.print("{d:0>3}", .{self.ns});
+            },
+            .tz_hour => {
+                try writer.print("{d:0>2}", .{@abs(self.tz.hour)});
+            },
+            .tz_minute => {
+                try writer.print("{d:0>2}", .{@abs(self.tz.minute)});
+            },
+        }
+    }
+
     /// Format up to second
     fn formatSecond(self: Self, writer: anytype, options: FormatOptions) !void {
         if (options.format == .extended) {
-            try writer.print(":", .{});
+            _ = try writer.write(":");
         }
-        try writer.print("{d:0>2}", .{self.second});
+        try self.formatField(writer, .second);
     }
 
     /// Format up to ms
-    fn formatMilli(self: Self, writer: anytype, options: FormatOptions) !void {
+    fn formatSecToMilli(self: Self, writer: anytype, options: FormatOptions) !void {
         try self.formatSecond(writer, options);
-        try writer.print(".{d:0>3}", .{self.ms});
+        _ = try writer.write(".");
+        try self.formatField(writer, .ms);
     }
 
     /// Format up to us
-    fn formatMicro(self: Self, writer: anytype, options: FormatOptions) !void {
-        try self.formatMilli(writer, options);
-        try writer.print("{d:0>3}", .{self.us});
+    fn formatSecToMicro(self: Self, writer: anytype, options: FormatOptions) !void {
+        try self.formatSecToMilli(writer, options);
+        try self.formatField(writer, .us);
     }
 
     /// Format up to ns
-    fn formatNano(self: Self, writer: anytype, options: FormatOptions) !void {
-        try self.formatMicro(writer, options);
-        try writer.print("{d:0>3}", .{self.ns});
+    fn formatSecToNano(self: Self, writer: anytype, options: FormatOptions) !void {
+        try self.formatSecToMicro(writer, options);
+        try self.formatField(writer, .ns);
     }
 
     /// Format ISO8601
@@ -750,31 +792,33 @@ pub const DateTime = struct {
         try self.validate();
 
         // Year
-        try writer.print("{d:0>4}", .{self.year});
+        try self.formatField(writer, .year);
 
         if (options.format == .extended) {
-            try writer.print("-", .{});
+            _ = try writer.write("-");
         }
 
         // Month
-        try writer.print("{d:0>2}", .{self.month});
+        try self.formatField(writer, .month);
 
         if (options.format == .extended) {
-            try writer.print("-", .{});
+            _ = try writer.write("-");
         }
 
         // Date
-        try writer.print("{d:0>2}T", .{self.date});
+        try self.formatField(writer, .date);
+
+        _ = try writer.write("T");
 
         // Hour
-        try writer.print("{d:0>2}", .{self.hour});
+        try self.formatField(writer, .hour);
 
         if (options.format == .extended) {
-            try writer.print(":", .{});
+            _ = try writer.write(":");
         }
 
         // Minute
-        try writer.print("{d:0>2}", .{self.minute});
+        try self.formatField(writer, .minute);
 
         switch (options.resolution) {
             .min => {},
@@ -782,13 +826,13 @@ pub const DateTime = struct {
                 try self.formatSecond(writer, options);
             },
             .ms => {
-                try self.formatMilli(writer, options);
+                try self.formatSecToMilli(writer, options);
             },
             .us => {
-                try self.formatMicro(writer, options);
+                try self.formatSecToMicro(writer, options);
             },
             .ns => {
-                try self.formatNano(writer, options);
+                try self.formatSecToNano(writer, options);
             },
         }
 
@@ -796,23 +840,23 @@ pub const DateTime = struct {
             const tz_sec = try self.tz.seconds();
 
             if (tz_sec == 0) {
-                try writer.print("Z", .{});
+                _ = try writer.write("Z");
                 return;
             }
 
             if (tz_sec > 0) {
-                try writer.print("+", .{});
+                _ = try writer.write("+");
             } else {
-                try writer.print("-", .{});
+                _ = try writer.write("-");
             }
 
-            try writer.print("{d:0>2}", .{@abs(self.tz.hour)});
+            try self.formatField(writer, .tz_hour);
 
             if (options.format == .extended) {
-                try writer.print(":", .{});
+                _ = try writer.write(":");
             }
 
-            try writer.print("{d:0>2}", .{@abs(self.tz.minute)});
+            try self.formatField(writer, .tz_minute);
         }
     }
 
