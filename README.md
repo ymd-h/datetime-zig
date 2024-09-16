@@ -38,11 +38,6 @@ const DateTime = datetime.DateTime;
 pub fn main(){
     // Create from Timestamp and TimeZone
     const dt = DateTime.fromTimestamp(.{ .s = std.time.timestamp() }, .{});
-    std.debug.print(
-        "{d:0>4}-{d:0>2}-{d:0>2} {d:0>2}:{d:0>2}:{}.{d:0>3}{d:0>3}{d:0>3}",
-        .{ dt.year, dt.month, dt.date,
-           dt.hour, dt.minute, dt.second,
-           dt.ms, dt.us, dt.ns });
     _ = try DateTime.fromTimestamp(.{ .ms = std.time.milliTimestamp() }, .{});
     _ = try DateTime.fromTimestamp(.{ .us = std.time.microTimestamp() }, .{});
     _ = try DateTime.fromTimestamp(.{ .ns = std.time.nanoTimestamp() }, .{});
@@ -50,6 +45,13 @@ pub fn main(){
 
     // Parse ISO8601 date string
     const dt2 = try DateTime.parse("2024-09-15T11:15:23.987+09:00");
+
+    // Format ISO8601
+    var w = std.io.bufferedWriter(std.iogetStdOut().writer());
+    const stdout = bw.writer();
+    try dt.formatISO8601(stdout, .{ .format = .extended, .resolution = .ms });
+    try stdout.print("\n", .{});
+    try bw.flush();
 
     // Compare DateTime
     _ = try dt.earlierThan(dt2);
