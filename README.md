@@ -16,13 +16,12 @@ In build.zig
 
 ```zig
 pub fn build(b: *b.std.Build) !void {
-    // (omit)
-    const exe = // your project executable
+    const exe = b.addExecutable(
+        // (omit)
+    );
 
     const datetime = b.dependency("datetime", .{ .target = .target, .optimize = .optimize });
-
-    exe.addModule("datetime", datetime.module("datetime"));
-    exe.linkLibrary(datetime.artifact("datetime"));
+    exe.root_module.addImport("datetime", datetime.module("datetime"));
 }
 ```
 
@@ -34,12 +33,13 @@ pub fn build(b: *b.std.Build) !void {
 ```zig
 const std = @import("std");
 const datetime = @import("datetime");
+const DateTime = datetime.DateTime;
 
 pub fn main(){
     // Create from Timestamp and TimeZone
     const dt = DateTime.fromTimestamp(.{ .s = std.time.timestamp() }, .{});
     std.debug.print(
-        "{}-{d:0>2}-{d:0>2} {d:0>2}:{d:0>2}:{}.{d:0>3}{d:0>3}{d:0>3}",
+        "{d:0>4}-{d:0>2}-{d:0>2} {d:0>2}:{d:0>2}:{}.{d:0>3}{d:0>3}{d:0>3}",
         .{ dt.year, dt.month, dt.date,
            dt.hour, dt.minute, dt.second,
            dt.ms, dt.us, dt.ns });
