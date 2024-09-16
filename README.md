@@ -2,11 +2,34 @@
 
 Time Zone awared Date Time.
 
-## Usage
+## 1. Usage
+
+### 1.1 Add dependency
+
 
 ```shell
 zig fetch --save=datetime git+https://github.com/ymd-h/datetime.zig
 ```
+
+
+In build.zig
+
+```zig
+pub fn build(b: *b.std.Build) !void {
+    // (omit)
+    const exe = // your project executable
+
+    const datetime = b.dependency("datetime", .{ .target = .target, .optimize = .optimize });
+
+    exe.addModule("datetime", datetime.module("datetime"));
+    exe.linkLibrary(datetime.artifact("datetime"));
+}
+```
+
+
+
+### 1.2 Code
+
 
 ```zig
 const std = @import("std");
