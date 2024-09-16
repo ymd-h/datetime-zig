@@ -816,6 +816,9 @@ pub const DateTime = struct {
 
     /// Change TimeZone
     pub fn changeTimeZone(self: *Self, tz: TimeZone) !void {
+        if(std.meta.eql(self.tz, tz)){
+            return;
+        }
         self.* = try DateTime.fromTimestamp(.{ .ns = try self.getNanoTimestamp() }, tz);
     }
 };
