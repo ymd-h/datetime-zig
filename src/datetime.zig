@@ -860,6 +860,138 @@ pub const DateTime = struct {
         }
     }
 
+    /// Format with custom format
+    ///   %Y -> 4 digit year
+    ///   %m -> 2 digit month
+    ///   %d -> 2 digit date
+    ///   %H -> 2 digit hour
+    ///   %M -> 2 digit minute
+    ///   %S -> 2 digit second
+    ///   %f -> 6 digit fraction in us [0 ... 999999]
+    ///   %N -> 9 digit fraction in ns [0 ... 999999999]
+    ///   %F -> "%Y-%m-%d"
+    ///   %R -> "%H:%M"
+    ///   %T -> "%H:%M:%S"
+    ///   %% -> Literal '%'
+    pub fn formatCustom(self: Self, writer: anytype, fmt: []const u8) !void {
+        try self.validate();
+
+        var remained_fmt = fmt;
+        while (remained_fmt.len > 0) {
+            for (remained_fmt, 0..) |c, i| {
+                switch (c) {
+                    '%' => {
+                        if (remained_fmt.len < i + 2) {
+                            // Must not end with '%'
+                            return error.InvalidFormat;
+                        }
+                        if (i > 0) {
+                            _ = try writer.write(remained_fmt[0..i]);
+                        }
+                        switch (remained_fmt[i + 1]) {
+                            'Y' => {
+                                try self.formatField(writer, .year);
+                            },
+                            'm' => {
+                                try self.formatField(writer, .month);
+                            },
+                            'd' => {
+                                try self.formatField(writer, .date);
+                            },
+                            'H' => {
+                                try self.formatField(writer, .hour);
+                            },
+                            'M' => {
+                                try self.formatField(writer, .minute);
+                            },
+                            'S' => {
+                                try self.formatField(writer, .second);
+                            },
+                            'f' => {
+                                // Python datetime format and C strftime
+                                try self.formatField(writer, .ms);
+                                try self.formatField(writer, .us);
+                            },
+                            'N' => {
+                                // GNU date command extension
+                                try self.formatField(writer, .ms);
+                                try self.formatField(writer, .us);
+                                try self.formatField(writer, .ns);
+                            },
+                            'F' => {
+                                // "%Y-%m-%d"
+                                try self.formatField(writer, .year);
+                                _ = try writer.write("-");
+                                try self.formatField(writer, .month);
+                                _ = try writer.write("-");
+                                try self.formatField(writer, .date);
+                            },
+                            'R' => {
+                                // "%H:%M"
+                                try self.formatField(writer, .hour);
+                                _ = try writer.write(":");
+                                try self.formatField(writer, .minute);
+                            },
+                            'T' => {
+                                // "%H:%M:%S"
+                                try self.formatField(writer, .hour);
+                                _ = try writer.write(":");
+                                try self.formatField(writer, .minute);
+                                _ = try writer.write(":");
+                                try self.formatField(writer, .second);
+                            },
+                            'z' => {
+                                if ((try self.tz.seconds()) >= 0) {
+                                    _ = try writer.write("+");
+                                } else {
+                                    _ = try writer.write("-");
+                                }
+                                try self.formatField(writer, .tz_hour);
+                                try self.formatField(writer, .tz_minute);
+                            },
+                            ':' => {
+                                // "%:z" GNU date command extention
+                                if (remained_fmt.len < i + 3) {
+                                    return error.InvalidFormat;
+                                }
+                                switch (remained_fmt[i + 2]) {
+                                    'z' => {
+                                        if ((try self.tz.seconds()) >= 0) {
+                                            _ = try writer.write("+");
+                                        } else {
+                                            _ = try writer.write("-");
+                                        }
+                                        try self.formatField(writer, .tz_hour);
+                                        _ = try writer.write(":");
+                                        try self.formatField(writer, .tz_minute);
+                                    },
+                                    else => {
+                                        return error.InvalidFormat;
+                                    },
+                                }
+                                // This branch consumes 1 additional character
+                                remained_fmt = remained_fmt[1..];
+                            },
+                            '%' => {
+                                _ = try writer.write("%");
+                            },
+                            else => {
+                                return error.InvalidFormat;
+                            },
+                        }
+                        remained_fmt = remained_fmt[i + 2 ..];
+                        break;
+                    },
+                    else => {},
+                }
+            } else {
+                // No '%' are found.
+                _ = try writer.write(remained_fmt);
+                remained_fmt = remained_fmt[remained_fmt.len..];
+            }
+        }
+    }
+
     /// Report whether self is earlier than other.
     /// This method assumes both DateTime have equal TimeZone.
     fn earlierThanFast(self: Self, other: Self) !bool {
@@ -1309,4 +1441,30 @@ test "DateTime.format" {
     try dt.formatISO8601(L.writer(), .{ .format = .extended, .resolution = .ms });
 
     try testing.expectEqualSlices(u8, "1988-05-22T00:00:00.000+09:00", L.items);
+}
+
+test "DateTime.formatCustom" {
+    var L = std.ArrayList(u8).init(testing.allocator);
+    defer L.deinit();
+
+    const dt = try DateTime.parse("1234-05-06T07:08:09.123456789+12:30");
+
+    try dt.formatCustom(L.writer(), "%Y/%m/%d");
+    try testing.expectEqualSlices(u8, "1234/05/06", L.items);
+
+    L.clearRetainingCapacity();
+    try dt.formatCustom(L.writer(), "%H:%M:%S");
+    try testing.expectEqualSlices(u8, "07:08:09", L.items);
+
+    L.clearRetainingCapacity();
+    try dt.formatCustom(L.writer(), "%f");
+    try testing.expectEqualSlices(u8, "123456", L.items);
+
+    L.clearRetainingCapacity();
+    try dt.formatCustom(L.writer(), "%z%%%:z");
+    try testing.expectEqualSlices(u8, "+1230%+12:30", L.items);
+
+    L.clearRetainingCapacity();
+    try dt.formatCustom(L.writer(), "Year: %Y, Month: %m, Date: %d");
+    try testing.expectEqualSlices(u8, "Year: 1234, Month: 05, Date: 06", L.items);
 }
