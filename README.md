@@ -53,6 +53,10 @@ pub fn main(){
     try stdout.print("\n", .{});
     try bw.flush();
 
+    // Custom Format
+    try dt.formatCustom(stdout, "%Y/%m/%d %H:%M:%S.%f %:z\n");
+
+
     // Compare DateTime
     _ = try dt.earlierThan(dt2);
     _ = try dt.laterThan(dt2);
