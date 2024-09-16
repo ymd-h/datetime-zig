@@ -12,7 +12,7 @@ Time Zone awared Date Time.
 
 
 ```shell
-zig fetch --save=datetime git+https://github.com/ymd-h/datetime.zig
+zig fetch --save=datetime git+https://github.com/ymd-h/datetime.zig#master
 ```
 
 
