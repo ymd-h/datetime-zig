@@ -17,7 +17,7 @@
     .dependencies = .{
         .datetime = .{
             .url = "../",
-            .hash = "122034afb15fb0b1a2271989f05c8302ba262d7fb9a1a2f02cee37a7d92fc1e2cbb7",
+            .hash = "1220a1b3dc0fbebf34ecaf5b637b9178dd227e93f64c6f9e0aa3ed1d2d86dd270480",
         },
     },
     .paths = .{

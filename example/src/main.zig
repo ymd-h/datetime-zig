@@ -9,5 +9,8 @@ pub fn main() !void {
 
     try now.formatISO8601(stdout, .{ .format = .extended, .resolution = .ns });
     try stdout.print("\n", .{});
+
+    try now.formatCustom(stdout, "%F %T.%f %:z\n");
+
     try bw.flush();
 }
