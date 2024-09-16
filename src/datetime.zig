@@ -507,6 +507,7 @@ pub const DateTime = struct {
         return @as(i128, try self.getMicroTimestamp()) * std.time.ns_per_us + self.ns;
     }
 
+    /// Parse Time
     fn parseTime(self: *Self, date_string: []const u8, is_ext: bool) !([]const u8) {
         // HH
         self.hour = try parseInt(u5, date_string, 2);
@@ -712,6 +713,12 @@ pub const DateTime = struct {
         return dt;
     }
 
+    /// Parse and set ISO8061 string
+    /// When some error happens, the current `DateTime` is unchanged and still valid.
+    pub fn parseInto(self: *Self, date_string: []const u8) !void {
+        self.* = try DateTime.parse(date_string);
+    }
+
     /// Format up to second
     fn formatSecond(self: Self, writer: anytype, options: FormatOptions) !void {
         if (options.format == .extended) {
@@ -807,12 +814,6 @@ pub const DateTime = struct {
 
             try writer.print("{d:0>2}", .{@abs(self.tz.minute)});
         }
-    }
-
-    /// Parse and set ISO8061 string
-    /// When some error happens, the current `DateTime` is unchanged and still valid.
-    pub fn parseInto(self: *Self, date_string: []const u8) !void {
-        self.* = try DateTime.parse(date_string);
     }
 
     /// Report whether self is earlier than other.
