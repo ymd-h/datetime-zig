@@ -77,3 +77,7 @@ pub fn main(){
 
 Since fields can be changed from outside freely,
 methods validate its values and fail unless it is valid.
+
+
+Leap second (`.second = 60`) is accepted and can be compared,
+however, it will be ignored when exporting to UNIX timestamp.

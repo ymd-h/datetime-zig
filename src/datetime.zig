@@ -289,7 +289,7 @@ pub const DateTime = struct {
     ///    1 <= date <= getDaysInMonth(is_leap, month)
     ///    0 <= hour <= 23
     ///    0 <= minute <= 59
-    ///    0 <= second <= 59
+    ///    0 <= second <= 60
     ///    0 <= ms <= 999
     ///    0 <= us <= 999
     ///    0 <= ns <= 999
@@ -312,7 +312,8 @@ pub const DateTime = struct {
             return error.InvalidMinute;
         }
 
-        if (self.second >= 60) {
+        if (self.second > 60) {
+            // Allow leap second
             return error.InvalidSecond;
         }
 
@@ -329,6 +330,11 @@ pub const DateTime = struct {
         }
 
         try self.tz.validate();
+    }
+
+    /// Report whether self points leap second.
+    fn isLeapSecond(self: Self) bool {
+        return self.second == 60;
     }
 
     /// Adjust time with second resolution
@@ -467,7 +473,7 @@ pub const DateTime = struct {
             @as(i64, self.date - 1) * std.time.s_per_day +
             @as(i64, self.hour) * std.time.s_per_hour +
             @as(i64, self.minute) * std.time.s_per_min +
-            @as(i64, self.second) -
+            @as(i64, @min(self.second, 59)) - // Leap Second is ignored
             @as(i64, try self.tz.seconds());
 
         return timestamp;
@@ -716,13 +722,42 @@ pub const DateTime = struct {
             (self.ns < other.ns));
     }
 
+    /// Report whether self is earlier than other
+    fn earlierThanSlow(self: Self, other: Self) !bool {
+        const self_s = try self.getTimestamp();
+        const other_s = try other.getTimestamp();
+
+        if (self_s != other_s) {
+            return self_s < other_s;
+        }
+
+        const self_leap = self.isLeapSecond();
+        const other_leap = other.isLeapSecond();
+
+        if (self_leap != other_leap) {
+            // Only one of them points leap second
+            // If other points leap second, self < other.
+            return other_leap;
+        }
+
+        if (self.ms != other.ms) {
+            return self.ms < other.ms;
+        }
+
+        if (self.us != other.us) {
+            return self.us < other.us;
+        }
+
+        return self.ns < other.ns;
+    }
+
     /// Report whether self is earlier than other.
     /// This method fails when any of self and other are invalid.
     pub fn earlierThan(self: Self, other: Self) !bool {
         if (std.meta.eql(self.tz, other.tz)) {
             return try self.earlierThanFast(other);
         }
-        return (try self.getNanoTimestamp()) < (try other.getNanoTimestamp());
+        return try self.earlierThanSlow(other);
     }
 
     /// Report whether self is later than other.
@@ -748,13 +783,21 @@ pub const DateTime = struct {
             (self.ns == other.ns));
     }
 
+    /// Report whether self is equal to other.
+    fn equalSlow(self: Self, other: Self) !bool {
+        const self_ns = try self.getNanoTimestamp();
+        const other_ns = try other.getNanoTimestamp();
+
+        return (self_ns == other_ns) and (self.isLeapSecond() == other.isLeapSecond());
+    }
+
     /// Report whether self points equal timestamp with other.
     /// This method fails when any of self and other are invalid.
     pub fn equal(self: Self, other: Self) !bool {
         if (std.meta.eql(self.tz, other.tz)) {
             return try self.equalFast(other);
         }
-        return (try self.getNanoTimestamp()) == (try other.getNanoTimestamp());
+        return try self.equalSlow(other);
     }
 
     /// Get day of the week
@@ -816,7 +859,7 @@ pub const DateTime = struct {
 
     /// Change TimeZone
     pub fn changeTimeZone(self: *Self, tz: TimeZone) !void {
-        if(std.meta.eql(self.tz, tz)){
+        if (std.meta.eql(self.tz, tz)) {
             return;
         }
         self.* = try DateTime.fromTimestamp(.{ .ns = try self.getNanoTimestamp() }, tz);
@@ -852,7 +895,7 @@ test "DateTime.validate" {
     try testing.expectError(error.InvalidDate, (DateTime{ .year = 1900, .month = 2, .date = 29 }).validate());
     try testing.expectError(error.InvalidHour, (DateTime{ .hour = 24 }).validate());
     try testing.expectError(error.InvalidMinute, (DateTime{ .minute = 60 }).validate());
-    try testing.expectError(error.InvalidSecond, (DateTime{ .second = 60 }).validate());
+    try testing.expectError(error.InvalidSecond, (DateTime{ .second = 61 }).validate());
     try testing.expectError(error.InvalidMilliSecond, (DateTime{ .ms = 1000 }).validate());
     try testing.expectError(error.InvalidMicroSecond, (DateTime{ .us = 1000 }).validate());
     try testing.expectError(error.InvalidNanoSecond, (DateTime{ .ns = 1000 }).validate());
