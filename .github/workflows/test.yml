@@ -18,6 +18,17 @@ jobs:
         with:
           version: ${{ matrix.zig }}
       - run: zig build test --release=${{ matrix.optimize }} --verbose --summary all
+  example:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: master
+      - run: |
+          zig fetch --save=datetime ../
+          zig build run
+        working-directory: ./example
   lint:
     runs-on: ubuntu-latest
     steps:
