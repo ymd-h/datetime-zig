@@ -700,8 +700,28 @@ pub const DateTime = struct {
     }
 
     /// Report whether self is earlier than other.
+    /// This method assumes both DateTime have equal TimeZone.
+    fn earlierThanFast(self: Self, other: Self) !bool {
+        try self.validate();
+        try other.validate();
+
+        return ((self.year < other.year) or
+            (self.month < other.month) or
+            (self.date < other.date) or
+            (self.hour < other.hour) or
+            (self.minute < other.minute) or
+            (self.second < other.second) or
+            (self.ms < other.ms) or
+            (self.us < other.us) or
+            (self.ns < other.ns));
+    }
+
+    /// Report whether self is earlier than other.
     /// This method fails when any of self and other are invalid.
     pub fn earlierThan(self: Self, other: Self) !bool {
+        if (std.meta.eql(self.tz, other.tz)) {
+            return try self.earlierThanFast(other);
+        }
         return (try self.getNanoTimestamp()) < (try other.getNanoTimestamp());
     }
 
@@ -711,9 +731,29 @@ pub const DateTime = struct {
         return try other.earlierThan(self);
     }
 
+    /// Report whether self is earlier than other.
+    /// This method assumes both DateTime have equal TimeZone.
+    fn equalFast(self: Self, other: Self) !bool {
+        try self.validate();
+        try other.validate();
+
+        return ((self.year == other.year) and
+            (self.month == other.month) and
+            (self.date == other.date) and
+            (self.hour == other.hour) and
+            (self.minute == other.minute) and
+            (self.second == other.second) and
+            (self.ms == other.ms) and
+            (self.us == other.us) and
+            (self.ns == other.ns));
+    }
+
     /// Report whether self points equal timestamp with other.
     /// This method fails when any of self and other are invalid.
     pub fn equal(self: Self, other: Self) !bool {
+        if (std.meta.eql(self.tz, other.tz)) {
+            return try self.equalFast(other);
+        }
         return (try self.getNanoTimestamp()) == (try other.getNanoTimestamp());
     }
 
