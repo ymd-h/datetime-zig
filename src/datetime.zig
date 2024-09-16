@@ -268,6 +268,19 @@ test "TimeZone.validate" {
 /// Sort Order
 pub const SortOrder = enum(u2) { asc, desc };
 
+/// Format Spec
+pub const FormatSpec = enum { basic, extended };
+
+/// Format Resolution
+pub const FormatResolution = enum { min, s, ms, us, ns };
+
+/// Format Options
+pub const FormatOptions = struct {
+    format: FormatSpec = .basic,
+    resolution: FormatResolution = .s,
+    tz: bool = true,
+};
+
 /// DateTime struct
 pub const DateTime = struct {
     year: u16 = 1970,
@@ -697,6 +710,103 @@ pub const DateTime = struct {
 
         try dt.validate();
         return dt;
+    }
+
+    /// Format up to second
+    fn formatSecond(self: Self, writer: anytype, options: FormatOptions) !void {
+        if (options.format == .extended) {
+            try writer.print(":", .{});
+        }
+        try writer.print("{d:0>2}", .{self.second});
+    }
+
+    /// Format up to ms
+    fn formatMilli(self: Self, writer: anytype, options: FormatOptions) !void {
+        try self.formatSecond(writer, options);
+        try writer.print(".{d:0>3}", .{self.ms});
+    }
+
+    /// Format up to us
+    fn formatMicro(self: Self, writer: anytype, options: FormatOptions) !void {
+        try self.formatMilli(writer, options);
+        try writer.print("{d:0>3}", .{self.us});
+    }
+
+    /// Format up to ns
+    fn formatNano(self: Self, writer: anytype, options: FormatOptions) !void {
+        try self.formatMicro(writer, options);
+        try writer.print("{d:0>3}", .{self.ns});
+    }
+
+    /// Format ISO8601
+    pub fn formatISO8601(self: Self, writer: anytype, options: FormatOptions) !void {
+        try self.validate();
+
+        // Year
+        try writer.print("{d:0>4}", .{self.year});
+
+        if (options.format == .extended) {
+            try writer.print("-", .{});
+        }
+
+        // Month
+        try writer.print("{d:0>2}", .{self.month});
+
+        if (options.format == .extended) {
+            try writer.print("-", .{});
+        }
+
+        // Date
+        try writer.print("{d:0>2}T", .{self.date});
+
+        // Hour
+        try writer.print("{d:0>2}", .{self.hour});
+
+        if (options.format == .extended) {
+            try writer.print(":", .{});
+        }
+
+        // Minute
+        try writer.print("{d:0>2}", .{self.minute});
+
+        switch (options.resolution) {
+            .min => {},
+            .s => {
+                try self.formatSecond(writer, options);
+            },
+            .ms => {
+                try self.formatMilli(writer, options);
+            },
+            .us => {
+                try self.formatMicro(writer, options);
+            },
+            .ns => {
+                try self.formatNano(writer, options);
+            },
+        }
+
+        if (options.tz) {
+            const tz_sec = try self.tz.seconds();
+
+            if (tz_sec == 0) {
+                try writer.print("Z", .{});
+                return;
+            }
+
+            if (tz_sec > 0) {
+                try writer.print("+", .{});
+            } else {
+                try writer.print("-", .{});
+            }
+
+            try writer.print("{d:0>2}", .{@abs(self.tz.hour)});
+
+            if (options.format == .extended) {
+                try writer.print(":", .{});
+            }
+
+            try writer.print("{d:0>2}", .{@abs(self.tz.minute)});
+        }
     }
 
     /// Parse and set ISO8061 string
@@ -1144,4 +1254,14 @@ test "DateTime.changeTimeZone" {
     var dt = DateTime{ .year = 2024, .tz = .{ .hour = -9 } };
     try dt.changeTimeZone(.{});
     try testing.expectEqualDeep(DateTime{ .year = 2024, .hour = 9 }, dt);
+}
+
+test "DateTime.format" {
+    var L = std.ArrayList(u8).init(testing.allocator);
+    defer L.deinit();
+
+    const dt = DateTime{ .year = 1988, .month = 5, .date = 22, .tz = .{ .hour = 9 } };
+    try dt.formatISO8601(L.writer(), .{ .format = .extended, .resolution = .ms });
+
+    try testing.expectEqualSlices(u8, "1988-05-22T00:00:00.000+09:00", L.items);
 }
