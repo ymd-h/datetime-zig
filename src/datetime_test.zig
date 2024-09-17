@@ -392,3 +392,18 @@ test "DateTime.formatCustom" {
     try dt.formatCustom(L.writer(), "Year: %Y, Month: %m, Date: %d");
     try testing.expectEqualSlices(u8, "Year: 1234, Month: 05, Date: 06", L.items);
 }
+
+
+test "DateTime leap second" {
+    const dt = DateTime{ .second = 59 };
+    const dt_t = DateTime{ .second = 59, .hour = 9, .tz = .{ .hour = 9 } };
+    const dt_l = DateTime{ .second = 60 };
+    try dt_l.validate();
+    try testing.expect(try dt.equal(dt_t));
+
+    try testing.expect(try dt.earlierThan(dt_l));
+    try testing.expect(try dt_t.earlierThan(dt_l));
+    try testing.expect(!try dt.equal(dt_l));
+    try testing.expect(!try dt_t.equal(dt_l));
+    try testing.expectEqual(dt.getTimestamp(), dt_l.getTimestamp());
+}
