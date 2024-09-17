@@ -22,7 +22,8 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    const datetime = b.dependency("datetime", .{ .target = target, .optimize = optimize });
+    const datetime = b.dependency("datetime-zig",
+                                  .{ .target = target, .optimize = optimize });
     exe.root_module.addImport("datetime", datetime.module("datetime"));
 
     // This declares intent for the executable to be installed into the

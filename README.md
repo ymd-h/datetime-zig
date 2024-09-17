@@ -12,7 +12,7 @@ Time Zone awared Date Time.
 
 
 ```shell
-zig fetch --save=datetime git+https://github.com/ymd-h/datetime.zig#master
+zig fetch --save git+https://github.com/ymd-h/datetime.zig#v0.0.2
 ```
 
 
@@ -24,7 +24,7 @@ pub fn build(b: *b.std.Build) !void {
         // (omit)
     );
 
-    const datetime = b.dependency("datetime", .{ .target = .target, .optimize = .optimize });
+    const datetime = b.dependency("datetime-zig", .{ .target = .target, .optimize = .optimize });
     exe.root_module.addImport("datetime", datetime.module("datetime"));
 }
 ```
