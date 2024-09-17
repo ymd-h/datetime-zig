@@ -203,6 +203,33 @@ pub const TimeZone = struct {
     }
 };
 
+const DurationTag = enum { days, hours, minutes, seconds, ms, us, ns };
+
+pub const Duration = union(DurationTag) {
+    days: i32,
+    hours: i64,
+    minutes: i64,
+    seconds: i64,
+    ms: i64,
+    us: i64,
+    ns: i128,
+
+    const Self = @This();
+
+    /// Get duration in nanoseconds
+    pub fn nanoseconds(self: Self) i128 {
+        return switch (self) {
+            .days => |v| @as(i128, v) * std.time.ns_per_day,
+            .hours => |v| @as(i128, v) * std.time.ns_per_hour,
+            .minutes => |v| @as(i128, v) * std.time.ns_per_min,
+            .seconds => |v| @as(i128, v) * std.time.ns_per_s,
+            .ms => |v| @as(i128, v) * std.time.ns_per_ms,
+            .us => |v| @as(i128, v) * std.time.ns_per_us,
+            .ns => |v| v,
+        };
+    }
+};
+
 /// Sort Order
 pub const SortOrder = enum(u2) { asc, desc };
 
@@ -1088,5 +1115,18 @@ pub const DateTime = struct {
             return;
         }
         self.* = try DateTime.fromTimestamp(.{ .ns = try self.getNanoTimestamp() }, tz);
+    }
+
+    /// Add Duration
+    pub fn addDuration(self: *Self, duration: Duration) !void {
+        const ns = duration.nanoseconds();
+        if (ns == 0) {
+            return;
+        }
+
+        self.* = try DateTime.fromTimestamp(
+            .{ .ns = try self.getNanoTimestamp() + ns },
+            self.tz,
+        );
     }
 };

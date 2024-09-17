@@ -8,6 +8,7 @@ const mod = @import("datetime.zig");
 const DateTime = mod.DateTime;
 const TimeZone = mod.TimeZone;
 const Timestamp = mod.Timestamp;
+const Duration = mod.Duration;
 const countLeapYear = mod.countLeapYear;
 const getDaysInMonth = mod.getDaysInMonth;
 
@@ -405,4 +406,40 @@ test "DateTime leap second" {
     try testing.expect(!try dt.equal(dt_l));
     try testing.expect(!try dt_t.equal(dt_l));
     try testing.expectEqual(dt.getTimestamp(), dt_l.getTimestamp());
+}
+
+test "Duration" {
+    try testing.expectEqual(
+        100_000_000_000,
+        (Duration{ .ns = 100_000_000_000 }).nanoseconds(),
+    );
+    try testing.expectEqual(
+        100_000_000_000,
+        (Duration{ .us = 100_000_000 }).nanoseconds(),
+    );
+    try testing.expectEqual(
+        100_000_000_000,
+        (Duration{ .ms = 100_000 }).nanoseconds(),
+    );
+    try testing.expectEqual(
+        100_000_000_000,
+        (Duration{ .seconds = 100 }).nanoseconds(),
+    );
+    try testing.expectEqual(
+        24 * 60 * 60 * 1_000_000_000,
+        (Duration{ .days = 1 }).nanoseconds(),
+    );
+
+    _ = (Duration{ .days = std.math.maxInt(i32) }).nanoseconds();
+    _ = (Duration{ .hours = std.math.maxInt(i64) }).nanoseconds();
+}
+
+test "DateTime.addDuration" {
+    var dt = DateTime{};
+
+    try dt.addDuration(.{ .days = 3 });
+    try testing.expectEqualDeep(DateTime{ .date = 4 }, dt);
+
+    try dt.addDuration(.{ .ns = -300 });
+    try testing.expectEqualDeep(DateTime{ .date = 3, .hour = 23, .minute = 59, .second = 59, .ms = 999, .us = 999, .ns = 700 }, dt);
 }
