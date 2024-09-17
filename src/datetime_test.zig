@@ -393,7 +393,6 @@ test "DateTime.formatCustom" {
     try testing.expectEqualSlices(u8, "Year: 1234, Month: 05, Date: 06", L.items);
 }
 
-
 test "DateTime leap second" {
     const dt = DateTime{ .second = 59 };
     const dt_t = DateTime{ .second = 59, .hour = 9, .tz = .{ .hour = 9 } };
