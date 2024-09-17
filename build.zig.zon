@@ -61,6 +61,7 @@
         "build.zig",
         "build.zig.zon",
         "src/datetime.zig",
+        "src/datetime_test.zig",
         // "README.md",
         // "LICENSE",
     },
