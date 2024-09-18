@@ -319,6 +319,18 @@ test "DateTime.dayOfWeek" {
     );
 }
 
+test "DateTime.dayOfYear" {
+    try testing.expectEqual(1, (DateTime{}).dayOfYear());
+    try testing.expectEqual(
+        365,
+        (DateTime{ .year = 1999, .month = 12, .date = 31 }).dayOfYear(),
+    );
+    try testing.expectEqual(
+        366,
+        (DateTime{ .year = 2000, .month = 12, .date = 31 }).dayOfYear(),
+    );
+}
+
 test "DateTime.sort" {
     var dates = [_]DateTime{
         DateTime{ .year = 2024 },

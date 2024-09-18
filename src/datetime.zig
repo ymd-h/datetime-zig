@@ -1081,6 +1081,21 @@ pub const DateTime = struct {
         return @enumFromInt(day);
     }
 
+    /// Get day of the year. (1 for 1st January)
+    pub fn dayOfYear(self: Self) !u16 {
+        try self.validate();
+
+        var days: u16 = @intCast(self.date);
+        if (self.month > 1) {
+            const is_leap = std.time.epoch.isLeapYear(self.year);
+            for (1..self.month) |m| {
+                days += getDaysInMonth(is_leap, @intCast(m)) catch unreachable;
+            }
+        }
+
+        return days;
+    }
+
     /// Sort asc function for `std.mem.sort()`
     /// Since it doesn't allow any errors,
     /// call `@panic` builtin when an error happens.
