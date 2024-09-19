@@ -408,7 +408,7 @@ pub const DateTime = struct {
             const days_per_this_month: i64 =
                 @intCast(getDaysInMonth(is_leap, dt.month) catch unreachable);
 
-            if (days <= days_per_this_month) {
+            if (days < days_per_this_month) {
                 break;
             }
 
@@ -416,6 +416,7 @@ pub const DateTime = struct {
             dt.month += 1;
         } else unreachable;
 
+        std.debug.assert(days <= 31);
         dt.date = @intCast(days + 1);
         return dt;
     }
