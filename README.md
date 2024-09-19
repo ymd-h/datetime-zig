@@ -91,3 +91,14 @@ methods validate its values and fail unless it is valid.
 
 Leap second (`.second = 60`) is accepted and can be compared,
 however, it will be ignored when exporting to UNIX timestamp.
+
+
+## 2. Features
+- Construct `DateTime` from `Timestamp` and `TimeZone`
+- Get timestamp with resolution of second, milli second, micro second, and nano second
+- Change `TimeZone`
+- Parse ISO8601 basic and extended format
+- Write ISO8601 basic and extended format, or custom format
+- Compare two `DateTime`
+- Sort `DateTime` slice
+- `floor()` and `ceil()` with resolution of century, year, hour, date, hour, minute, second, milli second, micro second, and nano second.
