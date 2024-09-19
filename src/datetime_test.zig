@@ -461,3 +461,94 @@ test "DateTime.addDuration" {
     try dt.addDuration(.{ .ns = -300 });
     try testing.expectEqualDeep(DateTime{ .date = 3, .hour = 23, .minute = 59, .second = 59, .ms = 999, .us = 999, .ns = 700 }, dt);
 }
+
+test "DateTime.floor" {
+    var dt = DateTime{ .hour = 3, .minute = 24, .ms = 200 };
+    try dt.floor(.hour);
+    try testing.expectEqualDeep(DateTime{ .hour = 3 }, dt);
+
+    dt = DateTime{ .us = 150, .ns = 120 };
+    try dt.floor(.ns);
+    try testing.expectEqualDeep(DateTime{ .us = 150, .ns = 120 }, dt);
+
+    dt = DateTime{ .year = 1507 };
+    try dt.floor(.century);
+    try testing.expectEqualDeep(DateTime{ .year = 1501 }, dt);
+
+    try dt.floor(.century);
+    try testing.expectEqualDeep(DateTime{ .year = 1501 }, dt);
+
+    dt = DateTime{ .month = 2, .date = 15 };
+    try dt.floor(.month);
+    try testing.expectEqualDeep(DateTime{ .month = 2 }, dt);
+
+    dt = DateTime{ .hour = 5, .tz = .{ .hour = 8 } };
+    try dt.floor(.date);
+    try testing.expectEqualDeep(DateTime{ .tz = .{ .hour = 8 } }, dt);
+
+    dt = DateTime{ .minute = 34, .ms = 22 };
+    try dt.floor(.hour);
+    try testing.expectEqualDeep(DateTime{}, dt);
+
+    dt = DateTime{ .year = 2022, .second = 54, .ms = 199 };
+    try dt.floor(.minute);
+    try testing.expectEqualDeep(DateTime{ .year = 2022 }, dt);
+
+    dt = DateTime{ .year = 2022, .second = 54, .ms = 199 };
+    try dt.floor(.second);
+    try testing.expectEqualDeep(DateTime{ .year = 2022, .second = 54 }, dt);
+
+    dt = DateTime{ .year = 2022, .second = 54, .ms = 199, .us = 22 };
+    try dt.floor(.ms);
+    try testing.expectEqualDeep(DateTime{ .year = 2022, .second = 54, .ms = 199 }, dt);
+
+    dt = DateTime{ .year = 2022, .second = 54, .ms = 199, .us = 22, .ns = 32 };
+    try dt.floor(.us);
+    try testing.expectEqualDeep(DateTime{ .year = 2022, .second = 54, .ms = 199, .us = 22 }, dt);
+
+    dt = DateTime{ .year = 2022, .second = 54, .ms = 199, .us = 22, .ns = 32 };
+    try dt.floor(.ns);
+    try testing.expectEqualDeep(DateTime{ .year = 2022, .second = 54, .ms = 199, .us = 22, .ns = 32 }, dt);
+}
+
+test "DateTime.ceil" {
+    var dt = DateTime{ .hour = 3, .minute = 23, .ms = 300 };
+    try dt.ceil(.century);
+    try testing.expectEqualDeep(DateTime{ .year = 2001 }, dt);
+
+    dt = DateTime{ .hour = 3, .minute = 23, .ms = 300 };
+    try dt.ceil(.year);
+    try testing.expectEqualDeep(DateTime{ .year = 1971 }, dt);
+
+    dt = DateTime{ .hour = 3, .minute = 23, .ms = 300 };
+    try dt.ceil(.month);
+    try testing.expectEqualDeep(DateTime{ .month = 2 }, dt);
+
+    dt = DateTime{ .hour = 3, .minute = 23, .ms = 300 };
+    try dt.ceil(.date);
+    try testing.expectEqualDeep(DateTime{ .date = 2 }, dt);
+
+    dt = DateTime{ .hour = 3, .minute = 23, .ms = 300 };
+    try dt.ceil(.hour);
+    try testing.expectEqualDeep(DateTime{ .hour = 4 }, dt);
+
+    dt = DateTime{ .hour = 3, .minute = 23, .ms = 300 };
+    try dt.ceil(.minute);
+    try testing.expectEqualDeep(DateTime{ .hour = 3, .minute = 24 }, dt);
+
+    dt = DateTime{ .hour = 3, .minute = 23, .ms = 300, .tz = .{ .minute = -30 } };
+    try dt.ceil(.second);
+    try testing.expectEqualDeep(DateTime{ .hour = 3, .minute = 23, .second = 1, .tz = .{ .minute = -30 } }, dt);
+
+    dt = DateTime{ .hour = 3, .minute = 23, .ms = 300, .us = 20 };
+    try dt.ceil(.ms);
+    try testing.expectEqualDeep(DateTime{ .hour = 3, .minute = 23, .ms = 301 }, dt);
+
+    dt = DateTime{ .hour = 3, .minute = 23, .ms = 300, .us = 20, .ns = 1 };
+    try dt.ceil(.us);
+    try testing.expectEqualDeep(DateTime{ .hour = 3, .minute = 23, .ms = 300, .us = 21 }, dt);
+
+    dt = DateTime{ .hour = 3, .minute = 23, .ms = 300 };
+    try dt.ceil(.ns);
+    try testing.expectEqualDeep(DateTime{ .hour = 3, .minute = 23, .ms = 300 }, dt);
+}
