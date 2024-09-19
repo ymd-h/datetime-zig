@@ -165,6 +165,12 @@ test "DateTime consistensy" {
         dt,
         DateTime.fromTimestamp(.{ .ns = (try dt.getNanoTimestamp()) }, tz),
     );
+
+    const dt2 = DateTime{ .month = 10, .date = 31 };
+    try testing.expectEqualDeep(
+        dt2,
+        DateTime.fromTimestamp(.{ .ns = (try dt2.getNanoTimestamp()) }, .{}),
+    );
 }
 
 test "DateTime.parse" {
