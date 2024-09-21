@@ -1193,9 +1193,12 @@ pub const DateTime = struct {
                     return;
                 }
                 self.floor(.month) catch unreachable;
-                const is_leap = std.time.epoch.isLeapYear(self.year);
-                const days = getDaysInMonth(is_leap, self.month) catch unreachable;
-                try self.addDuration(.{ .days = days });
+                if (self.month < 12) {
+                    self.month += 1;
+                } else {
+                    self.year += 1;
+                    self.month = 1;
+                }
             },
             .date => {
                 if ((self.hour == 0) and (self.minute == 0) and (self.second == 0) and
@@ -1204,7 +1207,14 @@ pub const DateTime = struct {
                     return;
                 }
                 self.floor(.date) catch unreachable;
-                try self.addDuration(.{ .days = 1 });
+
+                const is_leap = std.time.epoch.isLeapYear(self.year);
+                const days = getDaysInMonth(is_leap, self.month) catch unreachable;
+                if (self.date < days) {
+                    self.date += 1;
+                } else {
+                    try self.addDuration(.{ .days = 1 });
+                }
             },
             .hour => {
                 if ((self.minute == 0) and
@@ -1216,7 +1226,11 @@ pub const DateTime = struct {
                     return;
                 }
                 self.floor(.hour) catch unreachable;
-                try self.addDuration(.{ .hours = 1 });
+                if (self.hour < 23) {
+                    self.hour += 1;
+                } else {
+                    try self.addDuration(.{ .hours = 1 });
+                }
             },
             .minute => {
                 if ((self.second == 0) and
@@ -1227,28 +1241,50 @@ pub const DateTime = struct {
                     return;
                 }
                 self.floor(.minute) catch unreachable;
-                try self.addDuration(.{ .minutes = 1 });
+                if (self.minute < 59) {
+                    self.minute += 1;
+                } else {
+                    try self.addDuration(.{ .minutes = 1 });
+                }
             },
             .second => {
                 if ((self.ms == 0) and (self.us == 0) and (self.ns == 0)) {
                     return;
                 }
-                const s = (self.getTimestamp() catch unreachable) + 1;
-                self.* = try DateTime.fromTimestamp(.{ .s = s }, self.tz);
+                if (self.second < 59) {
+                    self.second += 1;
+                    self.ms = 0;
+                    self.us = 0;
+                    self.ns = 0;
+                } else {
+                    const s = (self.getTimestamp() catch unreachable) + 1;
+                    self.* = try DateTime.fromTimestamp(.{ .s = s }, self.tz);
+                }
             },
             .ms => {
                 if ((self.us == 0) and (self.ns == 0)) {
                     return;
                 }
-                const ms = (self.getMilliTimestamp() catch unreachable) + 1;
-                self.* = try DateTime.fromTimestamp(.{ .ms = ms }, self.tz);
+                if (self.ms < 999) {
+                    self.ms += 1;
+                    self.us = 0;
+                    self.ns = 0;
+                } else {
+                    const ms = (self.getMilliTimestamp() catch unreachable) + 1;
+                    self.* = try DateTime.fromTimestamp(.{ .ms = ms }, self.tz);
+                }
             },
             .us => {
                 if (self.ns == 0) {
                     return;
                 }
-                const us = (self.getMicroTimestamp() catch unreachable) + 1;
-                self.* = try DateTime.fromTimestamp(.{ .us = us }, self.tz);
+                if (self.us < 999) {
+                    self.us += 1;
+                    self.ns = 0;
+                } else {
+                    const us = (self.getMicroTimestamp() catch unreachable) + 1;
+                    self.* = try DateTime.fromTimestamp(.{ .us = us }, self.tz);
+                }
             },
             .ns => {},
         }
