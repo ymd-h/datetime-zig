@@ -16,8 +16,8 @@
     // internet connectivity.
     .dependencies = .{
         .@"datetime-zig" = .{
-            .url = "git+https://github.com/ymd-h/datetime-zig.git#v0.0.3",
-            .hash = "1220fe300914f279e667967b76ab5771a9480db7300da899a0114ffd012a0dfebd97",
+            .url = "git+https://github.com/ymd-h/datetime-zig.git#v0.0.4",
+            .hash = "12207d63deac51ac19347509c459e627a752024d0374306fc31d983156c775929e0e",
         },
     },
     .paths = .{
