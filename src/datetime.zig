@@ -1,11 +1,28 @@
-//! datetime.zig
+//! # datetime.zig
 //!
-//! # DateTime
-//! Time Zone awared Date Time struct
+//! datetime.zig provides timezone awared `DateTime`.
 //!
-//! # Timestamp
+//! ## Construct `DateTime`
+//! `DateTime` can be constructed with several ways.
 //!
-//! # TimeZone
+//!  - Manual construction
+//!    - Default fields are 1970-01-01 00:00:00Z
+//!  - From `Timestamp` and `TimeZone` (aka. `DateTime.fromTimestamp()`)
+//!  - Parse ISO8601 date time string (aka. `DateTime.parse()`)
+//!    - Basic and extended formats are supported
+//!    - Some format like quarter, number of weeks are not supported
+//!
+//! ## Compare `DateTime`
+//! `DateTime` can be compared based on timestamp.
+//!
+//! However, leap second (`60s`) is an exception,
+//! which is considered to be later than `59s`.
+//!
+//! - `DateTime.laterThan()`
+//! - `DateTime.earlierThan()`
+//! - `DateTime.equal()`
+//! - `DateTime.sort()`
+
 
 const std = @import("std");
 const testing = std.testing;
@@ -205,6 +222,12 @@ pub const TimeZone = struct {
 
 const DurationTag = enum { days, hours, minutes, seconds, ms, us, ns };
 
+/// `Duration` holds time interval
+///
+/// This is passed to `DateTime.addDuration()`.
+///
+/// `Duration` uses only apparent and fixed time interval,
+/// so that the maximum unit is `days`.
 pub const Duration = union(DurationTag) {
     days: i32,
     hours: i64,
@@ -233,60 +256,160 @@ pub const Duration = union(DurationTag) {
 /// Sort Order
 pub const SortOrder = enum(u2) { asc, desc };
 
-/// Format Spec
-pub const FormatSpec = enum { basic, extended };
+/// `FormatSpec` specifies ISO8601 format mode.
+pub const FormatSpec = enum {
+    /// Basic format like `YYYYmmddTHHMMSS`
+    basic,
+
+    /// Extend format like `YYYY-mm-ddTHH:MM:SS`
+    extended,
+};
 
 /// Format Resolution
-pub const FormatResolution = enum { min, s, ms, us, ns };
+pub const FormatResolution = enum {
+    /// `YYYY-mm-ddTHH:MM`
+    min,
+
+    /// `YYYY-mm-ddTHH:MM:SS`
+    s,
+
+    /// `YYYY-mm-ddTHH:MM:SS.sss`
+    ms,
+
+    /// `YYYY-mm-ddTHH:MM:SS.ssssss`
+    us,
+
+    /// `YYYY-mm-ddTHH:MM:SS.sssssssss`
+    ns,
+};
 
 /// Format Options
 pub const FormatOptions = struct {
+    /// ISO8061 basic or extended
     format: FormatSpec = .basic,
+
+    /// Format resolution
     resolution: FormatResolution = .s,
+
+    /// Whether `TimeZone` is included or not.
     tz: bool = true,
 };
 
 const DateTimeField = enum { year, month, date, hour, minute, second, ms, us, ns, tz_hour, tz_minute };
 
+/// `DateTimeResolution` represents resolution of nice round timestamp
+///
+/// This is used at `DateTime.ceil()` and `DateTime.floor()`.
+/// These functions round up or down the timestamp with this resolution.
+///
+/// `.ns` is noop and usually not useful.
 pub const DateTimeResolution = enum {
+    /// `??01-01-01T00:00:00.000000000+??:??`
     century,
+
+    /// `????-01-01T00:00:00.000000000+??:??`
     year,
+
+    /// `????-??-01T00:00:00.000000000+??:??`
     month,
+
+    /// `????-??-??T00:00:00.000000000+??:??`
     date,
+
+    /// `????-??-??T??:00:00.000000000+??:??`
     hour,
+
+    /// `????-??-??T??:??:00.000000000+??:??`
     minute,
+
+    /// `????-??-??T??:??:??.000000000+??:??`
     second,
+
+    /// `????-??-??T??:??:??.???000000+??:??`
     ms,
+
+    /// `????-??-??T??:??:??.??????000+??:??`
     us,
+
+    /// `????-??-??T??:??:??.?????????+??:??`
+    ///
+    /// Usually, this resolution is not useful.
     ns,
 };
 
-/// DateTime struct
+/// `DateTime` holds Gregorian calendar timestamp with `TimeZone`.
+///
+/// Default values of fields are 1970-01-01T00:00:00Z.
+/// You can set only necessary fields.
+///
+/// Leap second (aka. `second = 60`) is accepted and can be compared, however,
+/// it is ignored when exporting to timestamp.
+///
+/// Since fields can be modified from outside,
+/// methods validate its fields and return errors when it is invalid.
 pub const DateTime = struct {
+    /// `1 <= year`
     year: u16 = 1970,
+
+    /// `1 <= month <= 12`
     month: u4 = 1,
+
+    /// * `1 <= date <= 28` for `month == 2` and not leap year
+    /// * `1 <= date <= 29` for `month == 2` and leap year
+    /// * `1 <= date <= 30` for `month == 4, 6, 9, 11`
+    /// * `1 <= date <= 31` for `month == 1, 3, 5, 7, 8, 10, 12`
     date: u5 = 1,
+
+    /// `0 <= hour <= 23`
     hour: u5 = 0,
+
+    /// `0 <= minute <= 59`
     minute: u6 = 0,
+
+    /// `0 <= second <= 60`
     second: u6 = 0,
+
+    /// `0 <= ms <= 999`
     ms: u10 = 0,
+
+    /// `0 <= us <= 999`
     us: u10 = 0,
+
+    /// `0 <= ns <= 999`
     ns: u10 = 0,
+
+    /// Time Zone
     tz: TimeZone = .{},
 
     const Self = @This();
 
     /// Assert when `DateTime` is invalid.
-    ///    1 <= year
-    ///    1 <= month <= 12
-    ///    1 <= date <= getDaysInMonth(is_leap, month)
-    ///    0 <= hour <= 23
-    ///    0 <= minute <= 59
-    ///    0 <= second <= 60
-    ///    0 <= ms <= 999
-    ///    0 <= us <= 999
-    ///    0 <= ns <= 999
-    ///    tz is valid
+    ///
+    /// Following conditions are required.
+    ///
+    /// * `1 <= year`
+    /// * `1 <= month <= 12`
+    /// * `1 <= date <= getDaysInMonth(is_leap, month)`
+    /// * `0 <= hour <= 23`
+    /// * `0 <= minute <= 59`
+    /// * `0 <= second <= 60`
+    /// * `0 <= ms <= 999`
+    /// * `0 <= us <= 999`
+    /// * `0 <= ns <= 999`
+    /// * `tz` is valid
+    ///
+    /// ## error
+    /// Check from larger part (aka.  from `year`) to smaller (aka. `ns`), then `tz`.
+    /// When any violations are found, corresponding error is returned.
+    ///
+    /// - `error.InvalidYear`
+    /// - `error.InvalidDate`
+    /// - `error.InvalidHour`
+    /// - `error.InvalidMinute`
+    /// - `error.InvalidSecond`
+    /// - `error.InvalidMilliSecond`
+    /// - `error.InvalidMicroSecond`
+    /// - `error.InvalidNanoSecond`
     pub fn validate(self: Self) !void {
         if (self.year == 0) {
             return error.InvalidYear;
@@ -366,6 +489,10 @@ pub const DateTime = struct {
     }
 
     /// Create new `DateTime` from `Timestamp` and `TimeZone`.
+    ///
+    /// ## Error
+    /// - `error.InvalidTimeZone` unless `tz` is valid
+    /// - `error.TooOld` if `timestamp` points older than `1970-01-01T00:00:00Z`
     pub fn fromTimestamp(timestamp: Timestamp, tz: TimeZone) !Self {
         var dt: DateTime = .{ .tz = tz };
 
@@ -434,7 +561,7 @@ pub const DateTime = struct {
         return dt;
     }
 
-    /// Set Timestamp
+    /// Set `Timestamp` and `TimeZone`
     /// When some error happens, the current `DateTime` is unchanged and still valid.
     pub fn setTimestamp(self: *Self, timestamp: Timestamp, tz: TimeZone) !void {
         self.* = try DateTime.fromTimestamp(timestamp, tz);
@@ -586,7 +713,19 @@ pub const DateTime = struct {
         return s;
     }
 
-    /// Parse ISO8601 string
+    /// Parse ISO8601 datetime string
+    ///
+    /// Both basic and extended ISO8601 datetime formats are accepted.
+    ///
+    /// ## Example
+    /// ```zig
+    /// // Extended format
+    /// _ = try DateTime.parse("2024-04-01T00:15:00.234");
+    /// // DateTime{ .year = 2024, .month = 4, .hour = 15, .ms = 234 }
+    ///
+    /// // Basic format with TimeZone
+    /// _ = try DateTime.parse("19990705T150010-0723");
+    /// ```
     pub fn parse(date_string: []const u8) !Self {
         var dt: DateTime = .{};
 
@@ -766,7 +905,11 @@ pub const DateTime = struct {
         try self.formatField(writer, .ns);
     }
 
-    /// Format ISO8601
+    /// Format to ISO8601 datetime string
+    ///
+    /// `writer` parameter is `std.io.Writer` interface or
+    /// class with `write(self: Self, bytes []const u8) !void` and
+    /// `print(self: Self, comptime format: []const u8, args: anytype) !void` methods.
     pub fn formatISO8601(self: Self, writer: anytype, options: FormatOptions) !void {
         try self.validate();
 
@@ -840,18 +983,20 @@ pub const DateTime = struct {
     }
 
     /// Format with custom format
-    ///   %Y -> 4 digit year
-    ///   %m -> 2 digit month
-    ///   %d -> 2 digit date
-    ///   %H -> 2 digit hour
-    ///   %M -> 2 digit minute
-    ///   %S -> 2 digit second
-    ///   %f -> 6 digit fraction in us [0 ... 999999]
-    ///   %N -> 9 digit fraction in ns [0 ... 999999999]
-    ///   %F -> "%Y-%m-%d"
-    ///   %R -> "%H:%M"
-    ///   %T -> "%H:%M:%S"
-    ///   %% -> Literal '%'
+    /// * `"%Y"` -> 4 digit year
+    /// * `"%m"` -> 2 digit month
+    /// * `"%d"` -> 2 digit date
+    /// * `"%H"` -> 2 digit hour
+    /// * `"%M"` -> 2 digit minute
+    /// * `"%S"` -> 2 digit second
+    /// * `"%f"` -> 6 digit fraction in us [0 ... 999999]
+    /// * `"%N"` -> 9 digit fraction in ns [0 ... 999999999]
+    /// * `"%F"` -> `"%Y-%m-%d"`
+    /// * `"%R"` -> `"%H:%M"`
+    /// * `"%T"` -> `"%H:%M:%S"`
+    /// * `"%%"` -> Literal `'%'`
+    ///
+    /// Different from standard library, format (`fmt`) doesn't require `comptime`.
     pub fn formatCustom(self: Self, writer: anytype, fmt: []const u8) !void {
         try self.validate();
 
@@ -1124,7 +1269,11 @@ pub const DateTime = struct {
         return lhs.laterThan(rhs) catch @panic("Invalid DateTime");
     }
 
-    /// Sort DateTime slice
+    /// Sort `DateTime` slice
+    ///
+    /// Sort order (`order`) must be `comptime`.
+    ///
+    /// This is the wrapper function of `std.mem.sort()` for `[]DateTime`.
     pub fn sort(date_array: []Self, comptime order: SortOrder) !void {
         for (date_array) |dt| {
             try dt.validate();
@@ -1138,7 +1287,7 @@ pub const DateTime = struct {
         std.mem.sort(Self, date_array, {}, f);
     }
 
-    /// Change TimeZone
+    /// Change `TimeZone`
     pub fn changeTimeZone(self: *Self, tz: TimeZone) !void {
         if (std.meta.eql(self.tz, tz)) {
             return;
@@ -1146,7 +1295,9 @@ pub const DateTime = struct {
         self.* = try DateTime.fromTimestamp(.{ .ns = try self.getNanoTimestamp() }, tz);
     }
 
-    /// Add Duration
+    /// Add `Duration`
+    ///
+    /// `TimeZone` doesn't change
     pub fn addDuration(self: *Self, duration: Duration) !void {
         const ns = duration.nanoseconds();
         if (ns == 0) {
@@ -1159,7 +1310,7 @@ pub const DateTime = struct {
         );
     }
 
-    /// Ceil
+    /// Round up (go to future) to nice round timestamp with `DateTimeResolution`
     pub fn ceil(self: *Self, resolution: DateTimeResolution) !void {
         try self.validate();
 
@@ -1290,7 +1441,7 @@ pub const DateTime = struct {
         }
     }
 
-    /// Floor
+    /// Round down (go to past) to nice round timestamp with `DateTimeResolution`
     pub fn floor(self: *Self, resolution: DateTimeResolution) !void {
         try self.validate();
 

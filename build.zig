@@ -24,6 +24,7 @@ pub fn build(b: *std.Build) void {
     // Creates a step for unit testing. This only builds the test executable
     // but does not run it.
     const unit_tests = b.addTest(.{
+        .name = "datetime-zig",
         .root_source_file = b.path("src/datetime.zig"),
         .target = target,
         .optimize = optimize,
@@ -36,4 +37,15 @@ pub fn build(b: *std.Build) void {
     // running the unit tests.
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_lib_unit_tests.step);
+
+
+    const gen_doc = b.addInstallDirectory(.{
+        .source_dir = unit_tests.getEmittedDocs(),
+        .install_dir = .prefix,
+        .install_subdir = "./doc",
+    });
+
+
+    const doc_step = b.step("doc", "Generate documents");
+    doc_step.dependOn(&gen_doc.step);
 }
