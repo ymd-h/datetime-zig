@@ -2,6 +2,9 @@
 //!
 //! datetime.zig provides timezone awared `DateTime`.
 //!
+//! `DateTime` struct has human readable fields like `year`, `month` etc,
+//! and `tz` of `TimeZone`.
+//!
 //! ## Construct `DateTime`
 //! `DateTime` can be constructed with several ways.
 //!
@@ -22,7 +25,17 @@
 //! - `DateTime.earlierThan()`
 //! - `DateTime.equal()`
 //! - `DateTime.sort()`
-
+//!
+//! ## Format `DateTime`
+//! `DateTime` can format with ISO8601 or user defined custom format.
+//! These methods take `std.io.Writer` like interface.
+//!
+//! - `DateTime.formatISO8601()`
+//! - `DateTime.formatCustom()`
+//!
+//! ## Key differences from `std.time` and `std.time.epoch`
+//! - Month is number (`u4`) instead of enum
+//! - Negative timestamp (before `1970-01-01T00:00:00Z`) is supported
 
 const std = @import("std");
 const testing = std.testing;
@@ -188,8 +201,8 @@ test "Timestamp" {
     try testing.expectEqualDeep(Timestamp{ .ns = 30 * 60 * 1_000_000_000 }, tsn);
 }
 
-/// Time Zone struct
-/// This struct is used at `DateTime` field and `DateTime.fromTimestamp()`.
+/// `TimeZone` is used at `DateTime` field and `DateTime.fromTimestamp()`.
+///
 /// The signs of `hour` and `minute` fields must be same,
 /// otherwise some `DateTime` methods will fail.
 pub const TimeZone = struct {
