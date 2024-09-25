@@ -38,13 +38,11 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_lib_unit_tests.step);
 
-
     const gen_doc = b.addInstallDirectory(.{
         .source_dir = unit_tests.getEmittedDocs(),
         .install_dir = .prefix,
         .install_subdir = "./doc",
     });
-
 
     const doc_step = b.step("doc", "Generate documents");
     doc_step.dependOn(&gen_doc.step);
