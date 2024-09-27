@@ -24,13 +24,7 @@ jobs:
       - uses: goto-bus-stop/setup-zig@v2
         with:
           version: 0.13.0
-      - uses: actions/cache@v4
-        with:
-          path: ./zig-cache
-          key: doc-cache
-          restore-keys: |
-            build-cache-ubuntu-latest-0.13.0-
-      - run: zig build doc  --verbose --summary all --cache-dir ./.zig-cache --global-cache-dir ./.zig-cache --prominent-compile-errors
+      - run: zig build doc  --verbose
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
