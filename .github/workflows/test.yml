@@ -21,6 +21,7 @@ jobs:
           zig build test --release=${{ matrix.optimize }} --verbose --summary all || \
           sleep 1 && \
           zig build test --release=${{ matrix.optimize }} --verbose --summary all
+        shell: bash
   example:
     runs-on: ubuntu-latest
     steps:
