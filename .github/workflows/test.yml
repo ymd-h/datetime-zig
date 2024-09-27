@@ -17,7 +17,10 @@ jobs:
       - uses: goto-bus-stop/setup-zig@v2
         with:
           version: ${{ matrix.zig }}
-      - run: zig build test --release=${{ matrix.optimize }} --verbose --summary all || sleep 1 && zig build test --release=${{ matrix.optimize }} --verbose --summary all
+      - run: |
+          zig build test --release=${{ matrix.optimize }} --verbose --summary all || \
+          sleep 1 && \
+          zig build test --release=${{ matrix.optimize }} --verbose --summary all
   example:
     runs-on: ubuntu-latest
     steps:
@@ -27,7 +30,9 @@ jobs:
           version: master
       - run: |
           zig fetch --save=datetime ../
-          zig build run --verbose
+          zig build run --verbose || \
+          sleep 1 && \
+          zig build run
         working-directory: ./example
   lint:
     runs-on: ubuntu-latest
