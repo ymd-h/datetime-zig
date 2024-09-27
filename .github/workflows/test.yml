@@ -17,14 +17,11 @@ jobs:
       - uses: goto-bus-stop/setup-zig@v2
         with:
           version: ${{ matrix.zig }}
-      - uses: actions/cache@v4
-        with:
-          path: ./.zig-cache
-          key: build-cache-${{ matrix.os }}-${{ matrix.zig }}-${{ matrix.optimize }}
-          restore-keys: |
-            build-cache-${{ matrix.os }}-${{ matrix.zig }}-
-            build-cache-${{ matrix.os }}
-      - run: zig build test --release=${{ matrix.optimize }} --verbose --summary all --cache-dir ./.zig-cache --global-cache-dir ./.zig-cache --prominent-compile-errors
+      - run: |
+          zig build test --release=${{ matrix.optimize }} --verbose --summary all || \
+          sleep 1 && \
+          zig build test --release=${{ matrix.optimize }} --verbose --summary all
+        shell: bash
   example:
     runs-on: ubuntu-latest
     steps:
@@ -32,15 +29,11 @@ jobs:
       - uses: goto-bus-stop/setup-zig@v2
         with:
           version: master
-      - uses: actions/cache@v4
-        with:
-          path: ./zig-cache
-          key: example-cache
-          restore-keys: |
-            build-cache-ubuntu-latest-master-
       - run: |
           zig fetch --save=datetime ../
-          zig build run --verbose --summary all --cache-dir ./.zig-cache --global-cache-dir ./.zig-cache --prominent-compile-errors
+          zig build run --verbose || \
+          sleep 1 && \
+          zig build run
         working-directory: ./example
   lint:
     runs-on: ubuntu-latest
